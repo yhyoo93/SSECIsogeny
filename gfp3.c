@@ -14,7 +14,7 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  
-	Modifed by Dieter Fishbein
+  Modifed by Dieter Fishbein
 */
 
 #include <pthread.h>
@@ -116,7 +116,7 @@ int setup_GF(GF_params* field, const char* characteristic) {
     mpz_mul_2exp(field->p, field->p, 387);
     mpz_sub_ui(field->p, field->p, 1);
   } else {
-	mpz_init( field->p );
+  mpz_init( field->p );
     mpz_set_str(field->p, characteristic, 0);
   }
   // Check that the Legendre symbol of -1 is -1 (p = 3 mod 4)
@@ -154,7 +154,7 @@ void set_GF(GF* x, const char* a, const char* b) {
 }
 
 void set_GFc(GF* x, const char* p) {
-	mpz_set_str(x->parent->p, p, 0);	
+  mpz_set_str(x->parent->p, p, 0);  
 }
 
 
@@ -332,7 +332,7 @@ void mul_GF(GF *res, const GF x, const GF y) {
     gmp_printf("\n y.b: %Zd\n", y.b);  
     printf("\nInputs to mpz_mul ", countMul) ;   
 */
-			
+      
   mpz_add(y.parent->tmp1, x.a, x.b);
   mpz_sub(y.parent->tmp2, y.b, y.a);
     
@@ -429,10 +429,10 @@ void mul_GF_t(GF *res, const GF x, const GF y, mpz_t *tmp) {
    // mpz_t tmp1, tmp2, tmp3;
    // mpz_init(tmp1); mpz_init(tmp2); mpz_init(tmp3);
     
-    mpz_add(tmp[0], x.a, x.b);	
+    mpz_add(tmp[0], x.a, x.b);  
     
     mpz_sub(tmp[1], y.b, y.a);   
-	
+  
     mpz_mul(tmp[2], tmp[0], tmp[1]);
     
     mpz_mul(tmp[0], x.a, y.b);
@@ -494,7 +494,7 @@ int inv_GF(GF *res, const GF x) {
   mpz_mul(x.parent->tmp1, x.a, x.a);
   mpz_addmul(x.parent->tmp1, x.b, x.b);
   if (!mpz_invert(x.parent->tmp3, x.parent->tmp1, x.parent->p))
-	  return 0;
+    return 0;
 
   mpz_mul(x.parent->tmp1, x.b, x.parent->tmp3);
   mpz_neg(x.parent->tmp3, x.parent->tmp3);
@@ -540,9 +540,9 @@ void print_GF(const GF x, char * a) {
 
 //returns the characteristic of the field containing the given GF element
 char * getChar( GF *res) {
-	char * sa1= malloc( mpz_sizeinbase(res->parent->p, 10)+10 );
+  char * sa1= malloc( mpz_sizeinbase(res->parent->p, 10)+10 );
     mpz_get_str(sa1, 10, res->parent->p);
-	return sa1;
+  return sa1;
 }
 
 
@@ -578,11 +578,11 @@ int equals(GF *a, GF *b){
 
 // One step of Montgomery ladder
 void mont_ladder(GF *res1x, GF *res1z,
-		 GF *res2x, GF *res2z,
-		 const GF x1, const GF z1,
-		 const GF x2, const GF z2,
-		 const GF dx, const GF dz,
-		 const GF A24) {
+     GF *res2x, GF *res2z,
+     const GF x1, const GF z1,
+     const GF x2, const GF z2,
+     const GF dx, const GF dz,
+     const GF A24) {
   GF* tmp = x1.parent->GFtmp;
 
   add_GF(&tmp[4], x1, z1);         // a = (self.x + self.z)
@@ -614,8 +614,8 @@ void mont_ladder(GF *res1x, GF *res1z,
 
 /* Montgomery point doubling */
 void mont_double(GF *resx, GF *resz,
-		 const GF x, const GF z,
-		 const GF A24) {
+     const GF x, const GF z,
+     const GF A24) {
 
   GF* tmp = x.parent->GFtmp;
   add_GF(&tmp[0], x, z);           // a = (x + z)
@@ -624,15 +624,15 @@ void mont_double(GF *resx, GF *resz,
   sqr_GF(&tmp[3], tmp[2]);         // bb = b^2
   sub_GF(&tmp[4], tmp[1], tmp[3]); // c = aa - bb
   mul_GF(resz, A24, tmp[4]);   
-  add_GF(resz, *resz, tmp[3]);			
-  mul_GF(resz, *resz, tmp[4]);   // Z = c (bb + A24 c))	
+  add_GF(resz, *resz, tmp[3]);      
+  mul_GF(resz, *resz, tmp[4]);   // Z = c (bb + A24 c)) 
   mul_GF(resx, tmp[1], tmp[3]);  // X = aa bb  
 }
 
 /* Montgomery point tripling */
 void mont_triple(GF *resx, GF *resz,
-		 const GF x, const GF z,
-		 const GF A24) {
+     const GF x, const GF z,
+     const GF A24) {
   GF* tmp = x.parent->GFtmp;
 
   // Very dirty function, assuming that mont_double uses
@@ -660,7 +660,7 @@ void mont_triple(GF *resx, GF *resz,
   Guarantee: avoids the temporary registers 0-4.
 */
 void mont_to_ed(GF* Rx, GF* Ry,
-		const GF x, const GF y, const GF z) {
+    const GF x, const GF y, const GF z) {
   GF* tmp = x.parent->GFtmp;
 
   /*
@@ -708,11 +708,11 @@ typedef struct {
 //   P2 = dadd(P1, P2, D2)
 //   P3 = dadd(P1, P3, D3)
 void mont_tradd(GF *x1, GF *z1,
-		GF *x2, GF *z2,
-		GF *x3, GF *z3,
-		const GF dx2, const GF dz2,
-		const GF dx3, const GF dz3,
-		const GF A24) {
+    GF *x2, GF *z2,
+    GF *x3, GF *z3,
+    const GF dx2, const GF dz2,
+    const GF dx3, const GF dz3,
+    const GF A24) {
         dieter++;
     
     /*   GF_params *parent1, *parent2, *parent3;
@@ -912,12 +912,12 @@ void mont_3ladder(GF* Rx, GF* Rz,
   with parameters A,B.  Uses Edwards' coordinates for
   calculations.  */
 void shamir(GF* Rx, GF* Ry, GF* Rz,
-	    const GF A, const GF B,
-	    const GF Px, const GF Py, const GF Pz,
-	    const GF Qx, const GF Qy, const GF Qz,
-	    const mpz_t m, const mpz_t n) {
+      const GF A, const GF B,
+      const GF Px, const GF Py, const GF Pz,
+      const GF Qx, const GF Qy, const GF Qz,
+      const mpz_t m, const mpz_t n) {
   
-	
+  
    
   // some temporary registers
   GF_params* field = A.parent;
@@ -929,7 +929,7 @@ void shamir(GF* Rx, GF* Ry, GF* Rz,
     
  // pthread_t threads;  
  // int rc = pthread_create(&threads, NULL, EdwardsCompute, (void *) &thread1);   
-	
+  
   /* 
      Parameters of the Edwards curve equivalent to this one:
        a = (A+2)/B
@@ -995,7 +995,7 @@ void shamir(GF* Rx, GF* Ry, GF* Rz,
     sqr_GF(&tmp[2], *Ry); // tmp2 = D = Ry^2
     mul_GF(&tmp[3], a, tmp[1]); // tmp3 = E = a C
     add_GF(&tmp[4], tmp[3], tmp[2]); // tmp4 = F = E + D
-	sqr_GF(&tmp[5], *Rz); // tmp5 = H = Rz^2
+  sqr_GF(&tmp[5], *Rz); // tmp5 = H = Rz^2
     scalar_GF_si(&tmp[7], tmp[5], 2);
     sub_GF(&tmp[6], tmp[4], tmp[7]); // tmp6 = J = F - 2H
     sub_GF(&tmp[7], tmp[0], tmp[1]);
@@ -1009,17 +1009,17 @@ void shamir(GF* Rx, GF* Ry, GF* Rz,
     int r = mpz_tstbit(m, bit) | (mpz_tstbit(n, bit) << 1);
     if (r) {
       if (r == 1) {
-	mul_GF(&tmp[0], *Rx, aPx); // tmp0 = C = Rx aPx
-	mul_GF(&tmp[1], *Ry, aPy); // tmp1 = D = Ry aPy
-	add_GF(&tmp[2], aPx, aPy);  // tmp2 = H = aPx + aPy
+  mul_GF(&tmp[0], *Rx, aPx); // tmp0 = C = Rx aPx
+  mul_GF(&tmp[1], *Ry, aPy); // tmp1 = D = Ry aPy
+  add_GF(&tmp[2], aPx, aPy);  // tmp2 = H = aPx + aPy
       } else if (r == 2) {
-	mul_GF(&tmp[0], *Rx, aQx); // tmp0 = C = Rx aQx
-	mul_GF(&tmp[1], *Ry, aQy); // tmp1 = D = Ry aQy
-	add_GF(&tmp[2], aQx, aQy);  // tmp2 = H = aQx + aQy
+  mul_GF(&tmp[0], *Rx, aQx); // tmp0 = C = Rx aQx
+  mul_GF(&tmp[1], *Ry, aQy); // tmp1 = D = Ry aQy
+  add_GF(&tmp[2], aQx, aQy);  // tmp2 = H = aQx + aQy
       } else {
-	mul_GF(&tmp[0], *Rx, PQx); // tmp0 = C = Rx PQx
-	mul_GF(&tmp[1], *Ry, PQy); // tmp1 = D = Ry PQy
-	add_GF(&tmp[2], PQx, PQy);  // tmp2 = H = PQx + PQy
+  mul_GF(&tmp[0], *Rx, PQx); // tmp0 = C = Rx PQx
+  mul_GF(&tmp[1], *Ry, PQy); // tmp1 = D = Ry PQy
+  add_GF(&tmp[2], PQx, PQy);  // tmp2 = H = PQx + PQy
       }
       sqr_GF(&tmp[3], *Rz); // tmp3 = B = Rz^2
       mul_GF(&tmp[5], tmp[0], tmp[1]);
@@ -1101,8 +1101,8 @@ void a24(GF* A24, const GF A) {
   sending (x,z) to (0,0).
 */
 void isom_comp(iso* iso, GF* iA, GF* iB, GF* iA24,
-	       const GF A, const GF B, const GF A24,
-	       const GF x, const GF z) {
+         const GF A, const GF B, const GF A24,
+         const GF x, const GF z) {
   GF* tmp = A.parent->GFtmp;
   
   mont_double(&tmp[1], &tmp[2], x, z, A24);
@@ -1120,8 +1120,8 @@ void isom_comp(iso* iso, GF* iA, GF* iB, GF* iA24,
 
 /* Apply an isomorphism of Montgomery curves */
 void isom_apply(GF* X, GF* Y, GF* unused,
-		const iso iso,
-		const GF x, const GF y, const GF z) {
+    const iso iso,
+    const GF x, const GF y, const GF z) {
   GF* tmp = x.parent->GFtmp;
 
   mul_GF(&tmp[0], iso.r, z);
@@ -1137,8 +1137,8 @@ void isom_apply(GF* X, GF* Y, GF* unused,
   sending (x,z) to (1,...).
 */
 void iso2_comp(iso2* iso, GF* iA, GF* iB, GF* iA24,
-	       const GF A, const GF B,
-	       const GF x, const GF z) {
+         const GF A, const GF B,
+         const GF x, const GF z) {
   GF* tmp = x.parent->GFtmp;
 
   sub_GF(&tmp[0], x, z);
@@ -1154,8 +1154,8 @@ void iso2_comp(iso2* iso, GF* iA, GF* iB, GF* iA24,
 
 /* Apply a 2-isogeny of Montgomery curves */
 void iso2_apply(GF* X, GF* Y, GF* Z,
-		const iso2 iso,
-		const GF x, const GF y, const GF z) {
+    const iso2 iso,
+    const GF x, const GF y, const GF z) {
   GF* tmp = x.parent->GFtmp;
   
   sub_GF(&tmp[3], x, z);
@@ -1180,8 +1180,8 @@ void iso2_apply(GF* X, GF* Y, GF* Z,
   Compute a 3-isogeny of the montgomery curve
 */
 void iso3_comp(iso3* iso, GF* iA, GF* iB, GF* iA24,
-	       const GF A, const GF B,
-	       const GF x, const GF z) {
+         const GF A, const GF B,
+       const GF x, const GF z) {
   GF* tmp = x.parent->GFtmp;
 
   div_GF(&iso->p, x, z);             // p
@@ -1200,8 +1200,8 @@ void iso3_comp(iso3* iso, GF* iA, GF* iB, GF* iA24,
 
 /* Apply a 3-isogeny of Montgomery curves */
 void iso3_apply(GF* X, GF* Y, GF* Z,
-		const iso3 iso,
-		const GF x, const GF y, const GF z) {
+    const iso3 iso,
+    const GF x, const GF y, const GF z) {
   GF* tmp = x.parent->GFtmp;
 
   mul_GF(&tmp[0], z, iso.p);
@@ -1241,7 +1241,7 @@ void iso3_apply(GF* X, GF* Y, GF* Z,
   sending (1,...) to infinity.
 */
 void iso4_comp(iso4* iso, GF* iA, GF* iB, GF* iA24,
-	       const GF A, const GF B) {
+         const GF A, const GF B) {
   GF* tmp = A.parent->GFtmp;
 
   add_GF_ui(&iso->Ap2, A, 2); // Ap2 = A + 2
@@ -1257,8 +1257,8 @@ void iso4_comp(iso4* iso, GF* iA, GF* iB, GF* iA24,
 
 /* Apply a 4-isogeny of Montgomery curves */
 void iso4_apply(GF* X, GF* Y, GF* Z,
-		const iso4 iso,
-		const GF x, const GF y, const GF z) {
+    const iso4 iso,
+    const GF x, const GF y, const GF z) {
   GF* tmp = x.parent->GFtmp;
 
   mul_GF(&tmp[0], x, z); // z1 = x z
@@ -1431,31 +1431,31 @@ void * apply_t(void * thr){
     iso4_apply_t(t->X, t->Y, t->Z, t->d, t->x, t->y, t->z, tmp);
 }
 
-#define Q_INIT(q,field) do {	     \
+#define Q_INIT(q,field) do {       \
     q = malloc(sizeof(queue_point)); \
-    if (q) {			     \
-      q->next = q->prev = NULL;	     \
-      init_GF(&q->x, field);	     \
-      init_GF(&q->z, field);	     \
-      q->h = 0;			     \
-    }				     \
+    if (q) {           \
+      q->next = q->prev = NULL;      \
+      init_GF(&q->x, field);       \
+      init_GF(&q->z, field);       \
+      q->h = 0;          \
+    }            \
   } while(0)
 #define Q_CLEAR(q) do {   \
-      clear_GF(&q->x);	  \
-      clear_GF(&q->z);	  \
-      free(q);		  \
+      clear_GF(&q->x);    \
+      clear_GF(&q->z);    \
+      free(q);      \
     } while(0)
-#define Q_PUSH(tail,q) do {			\
-    tail->next = q;				\
-    q->prev = tail;				\
-    tail = q;					\
+#define Q_PUSH(tail,q) do {     \
+    tail->next = q;       \
+    q->prev = tail;       \
+    tail = q;         \
   } while(0)
-#define Q_POP(tail,q) do {				\
-    q = tail;						\
-    tail = tail->prev;					\
-    if (tail) {						\
-      tail->next = NULL;				\
-    }							\
+#define Q_POP(tail,q) do {    \
+    q = tail;           \
+    tail = tail->prev;    \
+    if (tail) {           \
+      tail->next = NULL;    \
+    }             \
   } while(0)
 #define Q_NEXT(q) (q->next)
 #define Q_PREV(q) (q->prev)
@@ -1464,22 +1464,20 @@ void * apply_t(void * thr){
 
 // These bits of code are almost identical for 1, 2, 3, 4
 // isogenies, thus we "template" them.
-#define APPLY_ISOG(apply,obj,lower) do {		\
-    for ( tmp = tail ; tmp ; tmp = Q_PREV(tmp)) {	\
-      apply(&tmp->x, NULL, &tmp->z, obj,		\
-	    tmp->x, tmp->x, tmp->z);			\
-      tmp->h = tmp->h - lower;				\
-    }							\
+#define APPLY_ISOG(apply,obj,lower) do {    \
+    for ( tmp = tail ; tmp ; tmp = Q_PREV(tmp)) { \
+      apply(&tmp->x, NULL, &tmp->z, obj,    \
+      tmp->x, tmp->x, tmp->z);  \
+      tmp->h = tmp->h - lower;        \
+    }       \
     if (Px && Py && Pz){  \
       apply(Px, Py, Pz, obj, *Px, *Py, *Pz);\
      }                           \
-    if (Qx && Qy && Qz)					\
-      apply(Qx, Qy, Qz, obj, *Qx, *Qy, *Qz);		\
   } while (0)              
-#define COMP_ISOG(comp,obj) do {			\
-    Q_POP(tail, tmp);					\
-    comp(&obj, A, B, A24, *A, *B, tmp->x, tmp->z);	\
-    Q_CLEAR(tmp);					\
+#define COMP_ISOG(comp,obj) do {    \
+    Q_POP(tail, tmp);         \
+    comp(&obj, A, B, A24, *A, *B, tmp->x, tmp->z);  \
+    Q_CLEAR(tmp);         \
   } while (0)
 
 
@@ -1504,14 +1502,13 @@ void *p3(){
 }
     
 
-/* Push (Px, Py, Pz) and (Qx, Qy, Qz) through the isogeny of kernel
+/* Push (Px, Py, Pz) through the isogeny of kernel
  generated by (Rx, Rz) using the given strategy. */
 void push_through_iso(GF *A, GF *B, GF *A24,
                       const GF Rx, const GF Rz,
                       const int ell, int *strategy, int h,
-                      GF *Px, GF *Py, GF *Pz,
-                      GF *Qx, GF *Qy, GF *Qz, int e) {
-	
+                      GF *Px, GF *Py, GF *Pz, int e) {
+  
     GF_params* field = A->parent;
     int split, i, first = 1, first2=1;
     union isogenies phi;
@@ -1544,7 +1541,7 @@ void push_through_iso(GF *A, GF *B, GF *A24,
             copy_GF(&tmp->x, tail->x);
             copy_GF(&tmp->z, tail->z);
             
-            for ( i=0 ; i < h - split ; i++) {	  
+            for ( i=0 ; i < h - split ; i++) {    
                 if (ell == 2){
                     mont_double(&tmp->x, &tmp->z,
                                 tmp->x, tmp->z, *A24); 
@@ -2286,6 +2283,128 @@ double ss_isogeny_exchange_dfc(double *time, char * eA, char * eB, char * lA_str
     return good;
 }
 
+double ZKP_identity(double *time, char * eA, char * eB, char * lA_str, char * lB_str, int *strA, int lenA, int *strB, int lenB, MP *PA, MP *QA, MP *PB, MP *QB){
+  int good=0;
+  int lA, lB;
+  lA = atoi(lA_str);
+  lB = atoi(lB_str);
+
+  int eA_num = atoi(eA);
+  int eB_num = atoi(eB);
+
+
+  // use one of PA, QA for S and one of PB, QB for R until we can generate random points with sage.
+  MP *S, *R, *psiS, *phiR;
+  S = malloc(sizeof(MP));
+  R = malloc(sizeof(MP));
+  //psiS = malloc(sizeof(MP));
+  //phiR = malloc(sizeof(MP));
+  init_MP(S);
+  init_MP(R);
+  //init_MP(psiS);
+  //init_MP(phiR);
+
+  int s_pq = 0; // random bits
+  int r_pq = 0;
+
+  if (s_pq == 0) {
+    copy_MP(S, PA);
+  } else {
+    copy_MP(S, QA);
+  }
+  if (r_pq == 0) {
+    copy_MP(R, PB);
+  } else {
+    copy_MP(R, QB);
+  }
+  //copy_MP(psiS, *S);
+  //copy_MP(phiR, *R);
+
+
+  GF *Sx, *Sy, *Sz, *Rx, *Ry, *Rz;
+
+  Sx = malloc(sizeof(GF));
+  init_GF(Sx, PA.x.parent);
+  copy_GF(Sx, (*S).x);
+  Sy = malloc(sizeof(GF));
+  init_GF(Sy, PA.x.parent);
+  copy_GF(Sy, (*S).y);
+  Sz = malloc(sizeof(GF));
+  init_GF(Sz, PA.x.parent);
+  copy_GF(Sz, (*S).z);
+  Rx = malloc(sizeof(GF));
+  init_GF(Rx, PA.x.parent);
+  copy_GF(Rx, (*R).x);
+  Ry = malloc(sizeof(GF));
+  init_GF(Ry, PA.x.parent);
+  copy_GF(Ry, (*R).y);
+  Rz = malloc(sizeof(GF));
+  init_GF(Rz, PA.x.parent);
+  copy_GF(Rz, (*R).z);
+
+
+  printf("----------------Computing Peggy's Diagram\n");
+
+  // set up curves
+  MC *E_S, *E_R, *E_SR, *E_RS;
+  E_S = malloc(sizeof(MC));
+  E_R = malloc(sizeof(MC));
+  E_SR = malloc(sizeof(MC));
+  E_RS = malloc(sizeof(MC));
+  init_MC(E_S);
+  init_MC(E_R);
+  init_MC(E_SR);
+  init_MC(E_RS);
+
+  GF *A, *B, *A24;
+  A = malloc(sizeof(GF));
+  B = malloc(sizeof(GF));
+  A24 = malloc(sizeof(GF));
+  init_GF(A, PA.x.parent);
+  init_GF(B, PA.x.parent);
+  init_GF(A24, PA.x.parent);
+  copy_GF(A, PA.curve.A);
+  copy_GF(B, PA.curve.B);
+  copy_GF(A24, PA.curve.A24);
+
+  // compute phi: E -> E/<S> and phi(R)
+  set_Curve(E_S, *A, *B, *A24);
+  push_through_iso(&(*E_S).A, &(*E_S).B, &(*E_S).A24, *Sx, *Sz, lA, strA, lenA-1, Rx, Ry, Rz, eA_num)
+  (*phiR).x = *Rx;
+  (*phiR).y = *Ry;
+  (*phiR).z = *Rz;
+
+  // compute phi':E/<S> -> E/<S,R> 
+  set_Curve(E_SR, (*E_S).A, (*E_S).B, (*E_S).A24);
+
+
+
+  copy_GF(Rx, (*R).x);
+  copy_GF(Ry, (*R).y);
+  copy_GF(Rz, (*R).z);
+
+  // compute psi: E -> E/<R> and psi(S)
+  set_Curve(E_R, *A, *B, *A24);
+  push_through_iso(&(*E_R).A, &(*E_R).B, &(*E_R).A24, *Rx, *Rz, lB, strB, lenB-1, Sx, Sy, Sz, eB_num)
+  (*psiS).x = *Sx;
+  (*psiS).y = *Sy;
+  (*psiS).z = *Sz;
+
+  // compute psi':E/<R> -> E/<R,S> 
+  set_Curve(E_RS, (*E_R).A, (*E_R).B, (*E_R).A24);
+
+
+
+
+
+  
+
+
+
+
+
+}
+
 //reads public parameters for use with ss_isogeny_exchange_dfc in from file. Note that this file must match the format and naming conventions
 //of the one generated by ss_isogeny_gen_file().
 void params_from_file(char * p, char *eA, char *eB, char *lA, char *lB, int *strA, int *lenA, int *strB, int *lenB, MP *PA, MP *QA, MP *PB, MP *QB, char * file ){
@@ -2596,7 +2715,7 @@ int main(int argc, char *argv[]) {
 
 }  
 
-	
+  
  
-						  
-			
+    
+      
