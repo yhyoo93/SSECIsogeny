@@ -1185,17 +1185,25 @@ void iso3_comp(iso3* iso, GF* iA, GF* iB, GF* iA24,
   GF* tmp = x.parent->GFtmp;
 
   div_GF(&iso->p, x, z);             // p
-  sqr_GF(&iso->p2, iso->p);          // p^2
+  sqr_GF(&iso->p2, iso->p);
+            // p^2
+  //printf("checkpoint1\n");
   
   scalar_GF_si(&tmp[3], iso->p, -6); 
   add_GF(&tmp[4], tmp[3], A);
   mul_GF(&tmp[3], tmp[4], iso->p);
   add_GF_ui(&tmp[4], tmp[3], 6);     // (-6p + A)p + 6
 
+  //printf("checkpoint2\n");
+  
   mul_GF(iB, B, iso->p2);      // iB = B p^2
   mul_GF(iA, tmp[4], iso->p);  // iA = ((-6p + A)p + 6)p
 
+  //printf("checkpoint3\n");
+
   a24(iA24, *iA);
+
+  //printf("checkpoint4\n");
 }
 
 /* Apply a 3-isogeny of Montgomery curves */
@@ -1527,6 +1535,7 @@ void push_through_iso(GF *A, GF *B, GF *A24,
         init_GF(&phi.d3.p, field);
         init_GF(&phi.d3.p2, field);
     }
+    //printf("pti_inits\n");
     
     Q_INIT(tail, field);
     copy_GF(&tail->x, Rx);
@@ -1537,6 +1546,7 @@ void push_through_iso(GF *A, GF *B, GF *A24,
         split = strategy[h];
         // Descend to the floor
         while (h > 1) {
+            //printf("height %d ", h);
             Q_INIT(tmp, field);
             copy_GF(&tmp->x, tail->x);
             copy_GF(&tmp->z, tail->z);
@@ -1560,10 +1570,12 @@ void push_through_iso(GF *A, GF *B, GF *A24,
             Q_PUSH(tail, tmp);
             h = split;
             split = strategy[h];
+            //printf("ending h=%d\n",h);
         }
         // For ell=2, at the first iteration, bring the
         // 2-torsion point to (0,0)
         if (ell == 2 && first) {
+          //printf("ell==2 && first\n");
             first = 0;
             Q_INIT(tmp, field); // slight abuse
             mont_double(&tmp->x, &tmp->z, tail->x, tail->z, *A24);
@@ -1572,6 +1584,7 @@ void push_through_iso(GF *A, GF *B, GF *A24,
             Q_CLEAR(tmp);
             APPLY_ISOG(isom_apply, phi.d1, 0);
         }
+        //printf("------------\n");
         
         
         // Compute and apply the isogeny
@@ -1581,11 +1594,12 @@ void push_through_iso(GF *A, GF *B, GF *A24,
             APPLY_ISOG(iso2_apply, phi.d2, 1);
                 
         } else {
+          //printf("ell != 2. Compute Isogeny:\n");
             COMP_ISOG(iso3_comp, phi.d3);
             
            // print_GF(phi.d3.p, "phi.d3.p"); 
            // print_GF(phi.d3.p2, "phi.d3.p2"); 
-            
+            //printf("Apply Isogeny:\n");
             APPLY_ISOG(iso3_apply, phi.d3, 1);
         }
        // count3++;   
@@ -2021,7 +2035,7 @@ void keygen_c_dfc1(MP *Pother2, MP *Qother2, mpz_t M, mpz_t N, int ell, int *str
     copy_GF(Qz, Qother.z);
     
   //  gettimeofday(&tv1,NULL);
-    push_through_iso( &(*E).A, &(*E).B, &(*E).A24, *Rx, *Rz, ell, strat, len - 1, Px, Py, Pz, Qx, Qy, Qz, e);
+  //  push_through_iso( &(*E).A, &(*E).B, &(*E).A24, *Rx, *Rz, ell, strat, len - 1, Px, Py, Pz, Qx, Qy, Qz, e);
    // gettimeofday(&tv2,NULL);
     
     //timersub(&tv2, &tv1, &diff);
@@ -2119,7 +2133,7 @@ void keygen_c_dfc2(MC *E, mpz_t M, mpz_t N, int ell, int *strat, int len, MP P, 
     set_Curve(E, *A, *B, *A24);
     
  //   gettimeofday(&tv1,NULL);
-    push_through_iso( &(*E).A, &(*E).B, &(*E).A24, *Rx, *Rz, ell, strat, len - 1, NULL, NULL, NULL, NULL, NULL, NULL, e);
+   // push_through_iso( &(*E).A, &(*E).B, &(*E).A24, *Rx, *Rz, ell, strat, len - 1, NULL, NULL, NULL, NULL, NULL, NULL, e);
  //   gettimeofday(&tv2,NULL);
     
   //  timersub(&tv2, &tv1, &diff);
@@ -2297,25 +2311,25 @@ double ZKP_identity(double *time, char * eA, char * eB, char * lA_str, char * lB
   MP *S, *R, *psiS, *phiR;
   S = malloc(sizeof(MP));
   R = malloc(sizeof(MP));
-  //psiS = malloc(sizeof(MP));
-  //phiR = malloc(sizeof(MP));
+  psiS = malloc(sizeof(MP));
+  phiR = malloc(sizeof(MP));
   init_MP(S);
   init_MP(R);
-  //init_MP(psiS);
-  //init_MP(phiR);
+  init_MP(psiS);
+  init_MP(phiR);
 
   int s_pq = 0; // random bits
   int r_pq = 0;
 
   if (s_pq == 0) {
-    copy_MP(S, PA);
+    copy_MP(S, *PA);
   } else {
-    copy_MP(S, QA);
+    copy_MP(S, *QA);
   }
   if (r_pq == 0) {
-    copy_MP(R, PB);
+    copy_MP(R, *PB);
   } else {
-    copy_MP(R, QB);
+    copy_MP(R, *QB);
   }
   //copy_MP(psiS, *S);
   //copy_MP(phiR, *R);
@@ -2324,22 +2338,22 @@ double ZKP_identity(double *time, char * eA, char * eB, char * lA_str, char * lB
   GF *Sx, *Sy, *Sz, *Rx, *Ry, *Rz;
 
   Sx = malloc(sizeof(GF));
-  init_GF(Sx, PA.x.parent);
+  init_GF(Sx, (*PA).x.parent);
   copy_GF(Sx, (*S).x);
   Sy = malloc(sizeof(GF));
-  init_GF(Sy, PA.x.parent);
+  init_GF(Sy, (*PA).x.parent);
   copy_GF(Sy, (*S).y);
   Sz = malloc(sizeof(GF));
-  init_GF(Sz, PA.x.parent);
+  init_GF(Sz, (*PA).x.parent);
   copy_GF(Sz, (*S).z);
   Rx = malloc(sizeof(GF));
-  init_GF(Rx, PA.x.parent);
+  init_GF(Rx, (*PA).x.parent);
   copy_GF(Rx, (*R).x);
   Ry = malloc(sizeof(GF));
-  init_GF(Ry, PA.x.parent);
+  init_GF(Ry, (*PA).x.parent);
   copy_GF(Ry, (*R).y);
   Rz = malloc(sizeof(GF));
-  init_GF(Rz, PA.x.parent);
+  init_GF(Rz, (*PA).x.parent);
   copy_GF(Rz, (*R).z);
 
 
@@ -2356,47 +2370,114 @@ double ZKP_identity(double *time, char * eA, char * eB, char * lA_str, char * lB
   init_MC(E_SR);
   init_MC(E_RS);
 
-  GF *A, *B, *A24;
+  GF *A, *B, *A24, *Acopy, *Bcopy, *A24copy;
   A = malloc(sizeof(GF));
   B = malloc(sizeof(GF));
   A24 = malloc(sizeof(GF));
-  init_GF(A, PA.x.parent);
-  init_GF(B, PA.x.parent);
-  init_GF(A24, PA.x.parent);
-  copy_GF(A, PA.curve.A);
-  copy_GF(B, PA.curve.B);
-  copy_GF(A24, PA.curve.A24);
+  Acopy = malloc(sizeof(GF));
+  Bcopy = malloc(sizeof(GF));
+  A24copy = malloc(sizeof(GF));
+  init_GF(A, (*PA).x.parent);
+  init_GF(B, (*PA).x.parent);
+  init_GF(A24, (*PA).x.parent);
+  init_GF(Acopy, (*PA).x.parent);
+  init_GF(Bcopy, (*PA).x.parent);
+  init_GF(A24copy, (*PA).x.parent);
+  copy_GF(A, (*PA).curve.A);
+  copy_GF(B, (*PA).curve.B);
+  copy_GF(A24, (*PA).curve.A24);
+  copy_GF(Acopy, (*PA).curve.A);
+  copy_GF(Bcopy, (*PA).curve.B);
+  copy_GF(A24copy, (*PA).curve.A24);
+
+  print_MP(S, "S");
+  print_MP(R, "R");
+
+
+  printf("**************** E *****************\n");
+  print_Curve(&(*PA).curve);
+  
+
 
   // compute phi: E -> E/<S> and phi(R)
+  printf("**************** E/<S> *****************\n");
   set_Curve(E_S, *A, *B, *A24);
-  push_through_iso(&(*E_S).A, &(*E_S).B, &(*E_S).A24, *Sx, *Sz, lA, strA, lenA-1, Rx, Ry, Rz, eA_num)
+  //printf("Pre computation\n");
+  //print_Curve(E_S);
+  push_through_iso(&(*E_S).A, &(*E_S).B, &(*E_S).A24, *Sx, *Sz, lA, strA, lenA-1, Rx, Ry, Rz, eA_num);
+  //printf("Post computation\n");
+  print_Curve(E_S);
+
+
   (*phiR).x = *Rx;
   (*phiR).y = *Ry;
   (*phiR).z = *Rz;
+  print_MP(phiR, "phi(R)");
+
 
   // compute phi':E/<S> -> E/<S,R> 
+  printf("*************** E/<S,R> ****************\n");
+  
   set_Curve(E_SR, (*E_S).A, (*E_S).B, (*E_S).A24);
+  
+  //printf("Pre computation\n");
+  //print_Curve(E_SR);
 
+  push_through_iso(&(*E_SR).A, &(*E_SR).B, &(*E_SR).A24, *Rx, *Rz, lB, strB, lenB-1, NULL, NULL, NULL, eB_num);
+  
+  //printf("Post computation\n");
+  print_Curve(E_SR);
 
-
+/*
+  print_GF(*Rx, "Rx");
+  print_GF(*Ry, "Ry");
+  print_GF(*Rz, "Rz");
+*/
   copy_GF(Rx, (*R).x);
   copy_GF(Ry, (*R).y);
   copy_GF(Rz, (*R).z);
 
+
   // compute psi: E -> E/<R> and psi(S)
-  set_Curve(E_R, *A, *B, *A24);
-  push_through_iso(&(*E_R).A, &(*E_R).B, &(*E_R).A24, *Rx, *Rz, lB, strB, lenB-1, Sx, Sy, Sz, eB_num)
+  printf("**************** E/<R> *****************\n");
+  
+  set_Curve(E_R, *Acopy, *Bcopy, *A24copy);
+  
+  //printf("Pre computation\n");
+  //print_Curve(E_R);
+  
+  push_through_iso(&(*E_R).A, &(*E_R).B, &(*E_R).A24, *Rx, *Rz, lB, strB, lenB-1, Sx, Sy, Sz, eB_num);
+
+  //printf("Post computation\n");  
+  print_Curve(E_R);
+
   (*psiS).x = *Sx;
   (*psiS).y = *Sy;
   (*psiS).z = *Sz;
+  print_MP(psiS, "psi(S)");
+
 
   // compute psi':E/<R> -> E/<R,S> 
   set_Curve(E_RS, (*E_R).A, (*E_R).B, (*E_R).A24);
+  push_through_iso(&(*E_RS).A, &(*E_RS).B, &(*E_RS).A24, *Sx, *Sz, lA, strA, lenA-1, NULL, NULL, NULL, eA_num);
+  
+  printf("*************** E/<R,S> ****************\n");
+  print_Curve(E_RS);
 
 
+  // compute j-invariants to check that E/<S,R> and E/<R,S> are isomorphic
+  GF ESR_j, ERS_j;
+  GF_params *parent;
+  parent = malloc(sizeof(GF_params));
+  setup_GF(parent,""); 
+  init_GF( &ESR_j, parent );
+  init_GF( &ERS_j, parent );
 
+  j_invariant(&ESR_j, E_SR);
+  j_invariant(&ERS_j, E_RS);
 
-
+  print_GF(ESR_j, "E/<S,R> J-Invariant");
+  print_GF(ERS_j, "E/<R,S> J-Invariant");
   
 
 
@@ -2672,6 +2753,10 @@ int main(int argc, char *argv[]) {
     double avgTime;
     int errors=0;
     
+
+    ZKP_identity(time, eA, eB, lA, lB, strA, lenA, strB, lenB, PA, QA, PB, QB);
+
+    /*
     for(i; i<iterations; i++){
         
       //  pthread_create(&threads[0], NULL, p2, NULL);
@@ -2685,6 +2770,7 @@ int main(int argc, char *argv[]) {
         if (!good)
             errors +=1;
     }
+    */
     
     avgTime = totalTime/(iterations*1.0);
     printf ("\nAverage Time for %d iteration(s) (sec) : %f \n", iterations, avgTime);
