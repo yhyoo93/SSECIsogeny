@@ -1185,25 +1185,17 @@ void iso3_comp(iso3* iso, GF* iA, GF* iB, GF* iA24,
   GF* tmp = x.parent->GFtmp;
 
   div_GF(&iso->p, x, z);             // p
-  sqr_GF(&iso->p2, iso->p);
-            // p^2
-  //printf("checkpoint1\n");
-  
+  sqr_GF(&iso->p2, iso->p);          // p^2
+
   scalar_GF_si(&tmp[3], iso->p, -6); 
   add_GF(&tmp[4], tmp[3], A);
   mul_GF(&tmp[3], tmp[4], iso->p);
   add_GF_ui(&tmp[4], tmp[3], 6);     // (-6p + A)p + 6
-
-  //printf("checkpoint2\n");
   
   mul_GF(iB, B, iso->p2);      // iB = B p^2
   mul_GF(iA, tmp[4], iso->p);  // iA = ((-6p + A)p + 6)p
 
-  //printf("checkpoint3\n");
-
   a24(iA24, *iA);
-
-  //printf("checkpoint4\n");
 }
 
 /* Apply a 3-isogeny of Montgomery curves */
@@ -1535,7 +1527,6 @@ void push_through_iso(GF *A, GF *B, GF *A24,
         init_GF(&phi.d3.p, field);
         init_GF(&phi.d3.p2, field);
     }
-    //printf("pti_inits\n");
     
     Q_INIT(tail, field);
     copy_GF(&tail->x, Rx);
@@ -1546,7 +1537,6 @@ void push_through_iso(GF *A, GF *B, GF *A24,
         split = strategy[h];
         // Descend to the floor
         while (h > 1) {
-            //printf("height %d ", h);
             Q_INIT(tmp, field);
             copy_GF(&tmp->x, tail->x);
             copy_GF(&tmp->z, tail->z);
@@ -1570,12 +1560,10 @@ void push_through_iso(GF *A, GF *B, GF *A24,
             Q_PUSH(tail, tmp);
             h = split;
             split = strategy[h];
-            //printf("ending h=%d\n",h);
         }
         // For ell=2, at the first iteration, bring the
         // 2-torsion point to (0,0)
         if (ell == 2 && first) {
-          //printf("ell==2 && first\n");
             first = 0;
             Q_INIT(tmp, field); // slight abuse
             mont_double(&tmp->x, &tmp->z, tail->x, tail->z, *A24);
@@ -1584,7 +1572,6 @@ void push_through_iso(GF *A, GF *B, GF *A24,
             Q_CLEAR(tmp);
             APPLY_ISOG(isom_apply, phi.d1, 0);
         }
-        //printf("------------\n");
         
         
         // Compute and apply the isogeny
@@ -1594,12 +1581,10 @@ void push_through_iso(GF *A, GF *B, GF *A24,
             APPLY_ISOG(iso2_apply, phi.d2, 1);
                 
         } else {
-          //printf("ell != 2. Compute Isogeny:\n");
             COMP_ISOG(iso3_comp, phi.d3);
             
            // print_GF(phi.d3.p, "phi.d3.p"); 
            // print_GF(phi.d3.p2, "phi.d3.p2"); 
-            //printf("Apply Isogeny:\n");
             APPLY_ISOG(iso3_apply, phi.d3, 1);
         }
        // count3++;   
