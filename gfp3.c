@@ -29,6 +29,8 @@
 #define GF_TMP_REGS 9
 #define MAX(a,b) (((a)>(b))? (a):(b))
 
+#include "keccak.h"
+
 
 /****************** TYPES *****************/
 
@@ -2282,7 +2284,8 @@ double ss_isogeny_exchange_dfc(double *time, char * eA, char * eB, char * lA_str
     return good;
 }
 
-double ZKP_identity(double *time, char * eA, char * eB, char * lA_str, char * lB_str, int *strA, int lenA, int *strB, int lenB, MP *PA, MP *QA, MP *PB, MP *QB){
+double ZKP_identity(double *time, char * eA, char * eB, char * lA_str, char * lB_str, int *strA, int lenA, int *strB, int lenB, MP *PA, MP *QA, MP *PB, MP *QB,
+                    int round, MC *com1, MC *com2, int *chal, MP *resp1, MP *resp2){
   int good=0;
   int lA, lB;
   lA = atoi(lA_str);
@@ -2737,9 +2740,26 @@ int main(int argc, char *argv[]) {
     double totalTime=0;
     double avgTime;
     int errors=0;
-    
 
-    ZKP_identity(time, eA, eB, lA, lB, strA, lenA, strB, lenB, PA, QA, PB, QB);
+    //compute commitment/challenge/responses
+    int rounds=8; //also equal to the bit length of hash output (must be a multiple of 8)
+    
+    MC *com1, *com2;
+    com1 = malloc(rounds * sizeof(MC));
+    com2 = malloc(rounds * sizeof(MC));
+    
+    int *chal;
+    chal = malloc(rounds * sizeof(int));
+    
+    MP *resp1, *resp2;
+    resp1 = malloc(rounds * sizeof(MP));
+    resp2 = malloc(rounds * sizeof(MP));
+
+    for(int r=0; r<rounds; r++) {
+      ZKP_identity(time, eA, eB, lA, lB, strA, lenA, strB, lenB, PA, QA, PB, QB, r, com1, com2, chal, resp1, resp2);
+
+    }
+
 
     /*
     for(i; i<iterations; i++){
