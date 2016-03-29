@@ -25,14 +25,9 @@
 #include <time.h>
 #include <openssl/rand.h>
 #include <sys/time.h>
-#include <string.h>
 #define DEBUG
 #define GF_TMP_REGS 9
 #define MAX(a,b) (((a)>(b))? (a):(b))
-
-#include "keccak.c"
-#include <stdarg.h>
-#include <limits.h>
 
 
 /****************** TYPES *****************/
@@ -1751,7 +1746,7 @@ void init_MP(MP* a) {
     init_GF( &(*a).x, parent );
     init_GF( &(*a).y, parent );
     init_GF( &(*a).z, parent );
-    init_MC(&a->curve);
+    init_MC(curve);
 }
     
 void copy_MP( MP *res, MP P ){
@@ -2287,9 +2282,7 @@ double ss_isogeny_exchange_dfc(double *time, char * eA, char * eB, char * lA_str
     return good;
 }
 
-
-double ZKP_identity(double *time, char * eA, char * eB, char * lA_str, char * lB_str, int *strA, int lenA, int *strB, int lenB, MP *PA, MP *QA, MP *PB, MP *QB,
-                    int round, MC *com1, MC *com2, int *chal, MP *resp1, MP *resp2){
+double ZKP_identity(double *time, char * eA, char * eB, char * lA_str, char * lB_str, int *strA, int lenA, int *strB, int lenB, MP *PA, MP *QA, MP *PB, MP *QB){
   int good=0;
   int lA, lB;
   lA = atoi(lA_str);
@@ -2310,8 +2303,8 @@ double ZKP_identity(double *time, char * eA, char * eB, char * lA_str, char * lB
   init_MP(psiS);
   init_MP(phiR);
 
-  int s_pq = rand()%2; // random bits
-  int r_pq = rand()%2;
+  int s_pq = 0; // random bits
+  int r_pq = 0;
 
   if (s_pq == 0) {
     copy_MP(S, *PA);
@@ -2386,40 +2379,39 @@ double ZKP_identity(double *time, char * eA, char * eB, char * lA_str, char * lB
   print_MP(R, "R");
 
 
-  //printf("**************** E *****************\n");
-  //print_Curve(&(*PA).curve);
+  printf("**************** E *****************\n");
+  print_Curve(&(*PA).curve);
   
 
 
   // compute phi: E -> E/<S> and phi(R)
-  //printf("**************** E/<S> *****************\n");
+  printf("**************** E/<S> *****************\n");
   set_Curve(E_S, *A, *B, *A24);
   //printf("Pre computation\n");
   //print_Curve(E_S);
   push_through_iso(&(*E_S).A, &(*E_S).B, &(*E_S).A24, *Sx, *Sz, lA, strA, lenA-1, Rx, Ry, Rz, eA_num);
   //printf("Post computation\n");
-  //print_Curve(E_S);
+  print_Curve(E_S);
 
 
-  copy_GF(&phiR->x, *Rx);
-  copy_GF(&phiR->y, *Ry);
-  copy_GF(&phiR->z, *Rz);
-  copy_MC(&phiR->curve, *E_S);
+  (*phiR).x = *Rx;
+  (*phiR).y = *Ry;
+  (*phiR).z = *Rz;
   print_MP(phiR, "phi(R)");
 
 
   // compute phi':E/<S> -> E/<S,R> 
-  //printf("*************** E/<S,R> ****************\n");
+  printf("*************** E/<S,R> ****************\n");
   
-  copy_MC(E_SR, *E_S);
-
+  set_Curve(E_SR, (*E_S).A, (*E_S).B, (*E_S).A24);
+  
   //printf("Pre computation\n");
   //print_Curve(E_SR);
 
   push_through_iso(&(*E_SR).A, &(*E_SR).B, &(*E_SR).A24, *Rx, *Rz, lB, strB, lenB-1, NULL, NULL, NULL, eB_num);
   
   //printf("Post computation\n");
-  //print_Curve(E_SR);
+  print_Curve(E_SR);
 
 /*
   print_GF(*Rx, "Rx");
@@ -2432,7 +2424,7 @@ double ZKP_identity(double *time, char * eA, char * eB, char * lA_str, char * lB
 
 
   // compute psi: E -> E/<R> and psi(S)
-  //printf("**************** E/<R> *****************\n");
+  printf("**************** E/<R> *****************\n");
   
   set_Curve(E_R, *Acopy, *Bcopy, *A24copy);
   
@@ -2442,58 +2434,22 @@ double ZKP_identity(double *time, char * eA, char * eB, char * lA_str, char * lB
   push_through_iso(&(*E_R).A, &(*E_R).B, &(*E_R).A24, *Rx, *Rz, lB, strB, lenB-1, Sx, Sy, Sz, eB_num);
 
   //printf("Post computation\n");  
-  //print_Curve(E_R);
+  print_Curve(E_R);
 
-  copy_GF(&psiS->x, *Sx);
-  copy_GF(&psiS->y, *Sy);
-  copy_GF(&psiS->z, *Sz);
-  copy_MC(&psiS->curve, *E_R);
+  (*psiS).x = *Sx;
+  (*psiS).y = *Sy;
+  (*psiS).z = *Sz;
   print_MP(psiS, "psi(S)");
 
 
   // compute psi':E/<R> -> E/<R,S> 
-  copy_MC(E_RS, *E_R);
+  set_Curve(E_RS, (*E_R).A, (*E_R).B, (*E_R).A24);
   push_through_iso(&(*E_RS).A, &(*E_RS).B, &(*E_RS).A24, *Sx, *Sz, lA, strA, lenA-1, NULL, NULL, NULL, eA_num);
   
-  //printf("*************** E/<R,S> ****************\n");
-  //print_Curve(E_RS);
-
-  print_MP(S, "S");
-  print_MP(R, "R");
-
-  print_Curve(E_R);
-  print_Curve(E_S);
+  printf("*************** E/<R,S> ****************\n");
   print_Curve(E_RS);
-  print_Curve(E_SR);
 
 
-  // commitments
-  copy_MC(&com1[round], *E_R);
-  copy_MC(&com2[round], *E_RS);
-
-  // challenges (randomly choose the first challenge bit)
-  int ch = rand()%2;
-  chal[round] = ch;
-
-  // responses
-  init_MP(&resp1[2*round]);
-  init_MP(&resp1[2*round+1]);
-  init_MP(&resp2[2*round]);
-  init_MP(&resp2[2*round+1]);
-  if(ch == 0) {
-    copy_MP(&resp1[2*round], *R);
-    copy_MP(&resp2[2*round], *phiR);
-
-    copy_MP(&resp2[2*round+1], *psiS);
-  } else {
-    copy_MP(&resp2[2*round], *psiS);
-
-    copy_MP(&resp1[2*round+1], *R);
-    copy_MP(&resp2[2*round+1], *phiR);
-  }
-
-
-/*
   // compute j-invariants to check that E/<S,R> and E/<R,S> are isomorphic
   GF ESR_j, ERS_j;
   GF_params *parent;
@@ -2507,20 +2463,13 @@ double ZKP_identity(double *time, char * eA, char * eB, char * lA_str, char * lB
 
   print_GF(ESR_j, "E/<S,R> J-Invariant");
   print_GF(ERS_j, "E/<R,S> J-Invariant");
-
-  free(parent);
-*/
-
-  free(S);free(R);free(psiS);free(phiR);
-  free(Sx);free(Sy);free(Sz);free(Rx);free(Ry);free(Rz);
-  free(E_S);free(E_R);free(E_SR);free(E_RS);
-  free(A);free(B);free(A24);
-  free(Acopy);free(Bcopy);free(A24copy);
   
+
+
+
+
+
 }
-
-
-
 
 //reads public parameters for use with ss_isogeny_exchange_dfc in from file. Note that this file must match the format and naming conventions
 //of the one generated by ss_isogeny_gen_file().
@@ -2728,134 +2677,9 @@ void params_from_file(char * p, char *eA, char *eB, char *lA, char *lB, int *str
     free(b);
 }
 
-
-char *concat(const char *s1, ...)
-{
-  va_list args;
-  const char *s;
-  char *p, *result;
-  unsigned long l, m, n;
- 
-  m = n = strlen(s1);
-  va_start(args, s1);
-  while ((s = va_arg(args, char *))) {
-    l = strlen(s);
-    if ((m += l) < l) break;
-  }
-  va_end(args);
-  if (s || m >= INT_MAX) return NULL;
- 
-  result = (char *)malloc(m + 1);
-  if (!result) return NULL;
- 
-  memcpy(p = result, s1, n);
-  p += n;
-  va_start(args, s1);
-  while ((s = va_arg(args, char *))) {
-    l = strlen(s);
-    if ((n += l) < l || n > m) break;
-    memcpy(p, s, l);
-    p += l;
-  }
-  va_end(args);
-  if (s || m != n || p != result + n) {
-    free(result);
-    return NULL;
-  }
- 
-  *p = 0;
-  return result;
-}
-
-
-char* join_strings(char* strings[], char* seperator, int count) {
-    char* str = NULL;             /* Pointer to the joined strings  */
-    size_t total_length = 0;      /* Total length of joined strings */
-    int i = 0;                    /* Loop counter                   */
-
-    /* Find total length of joined strings */
-    for (i = 0; i < count; i++) total_length += strlen(strings[i]);
-    total_length++;     /* For joined string terminator */
-    total_length += strlen(seperator) * (count - 1); // for seperators
-
-    str = (char*) malloc(total_length);  /* Allocate memory for joined strings */
-    str[0] = '\0';                      /* Empty string we can append to      */
-
-    /* Append all the strings */
-    for (i = 0; i < count; i++) {
-        strcat(str, strings[i]);
-        if (i < (count - 1)) strcat(str, seperator);
-    }
-
-    return str;
-}
-
-
-void string_data(char** data, int rounds, MC *com1, MC *com2, int *chal, MP *resp1, MP *resp2) {
-  char **rdata;
-  rdata = malloc(rounds * sizeof(char*));
-
-  int base = 10;
-  for(int r=0; r<rounds; r++) {
-      char *E1 = concat(mpz_get_str(NULL, base, com1[r].A.a), mpz_get_str(NULL, base, com1[r].A.b),
-                        mpz_get_str(NULL, base, com1[r].B.a), mpz_get_str(NULL, base, com1[r].B.b),
-                        mpz_get_str(NULL, base, com1[r].A24.a), mpz_get_str(NULL, base, com1[r].A24.b), NULL);
-      //printf("E1: %s\n", E1);  
-
-      char *E2 = concat(mpz_get_str(NULL, base, com2[r].A.a), mpz_get_str(NULL, base, com2[r].A.b),
-                        mpz_get_str(NULL, base, com2[r].B.a), mpz_get_str(NULL, base, com2[r].B.b),
-                        mpz_get_str(NULL, base, com2[r].A24.a), mpz_get_str(NULL, base, com2[r].A24.b), NULL);
-      //printf("E2: %s\n", E2);  
-
-      char *ch;
-      if (chal[r] == 0) ch = "01";
-      else ch = "10";
-      //printf("ch: %s\n", ch);
-
-      char *ch1R1 = concat(mpz_get_str(NULL, base, resp1[2*r].x.a), mpz_get_str(NULL, base, resp1[2*r].x.b),
-                        mpz_get_str(NULL, base, resp1[2*r].y.a), mpz_get_str(NULL, base, resp1[2*r].y.b),
-                        mpz_get_str(NULL, base, resp1[2*r].z.a), mpz_get_str(NULL, base, resp1[2*r].z.b),
-                        mpz_get_str(NULL, base, resp1[2*r].curve.A.a), mpz_get_str(NULL, base, resp1[2*r].curve.A.b),
-                        mpz_get_str(NULL, base, resp1[2*r].curve.B.a), mpz_get_str(NULL, base, resp1[2*r].curve.B.b),
-                        mpz_get_str(NULL, base, resp1[2*r].curve.A24.a), mpz_get_str(NULL, base, resp1[2*r].curve.A24.b), NULL);
-      //printf("ch1R1: %s\n", ch1R1);  
-
-      char *ch1R2 = concat(mpz_get_str(NULL, base, resp2[2*r].x.a), mpz_get_str(NULL, base, resp2[2*r].x.b),
-                        mpz_get_str(NULL, base, resp2[2*r].y.a), mpz_get_str(NULL, base, resp2[2*r].y.b),
-                        mpz_get_str(NULL, base, resp2[2*r].z.a), mpz_get_str(NULL, base, resp2[2*r].z.b),
-                        mpz_get_str(NULL, base, resp2[2*r].curve.A.a), mpz_get_str(NULL, base, resp2[2*r].curve.A.b),
-                        mpz_get_str(NULL, base, resp2[2*r].curve.B.a), mpz_get_str(NULL, base, resp2[2*r].curve.B.b),
-                        mpz_get_str(NULL, base, resp2[2*r].curve.A24.a), mpz_get_str(NULL, base, resp2[2*r].curve.A24.b), NULL);
-      //printf("ch1R2: %s\n", ch1R2);  
-
-      char *ch2R1 = concat(mpz_get_str(NULL, base, resp1[2*r+1].x.a), mpz_get_str(NULL, base, resp1[2*r+1].x.b),
-                        mpz_get_str(NULL, base, resp1[2*r+1].y.a), mpz_get_str(NULL, base, resp1[2*r+1].y.b),
-                        mpz_get_str(NULL, base, resp1[2*r+1].z.a), mpz_get_str(NULL, base, resp1[2*r+1].z.b),
-                        mpz_get_str(NULL, base, resp1[2*r+1].curve.A.a), mpz_get_str(NULL, base, resp1[2*r+1].curve.A.b),
-                        mpz_get_str(NULL, base, resp1[2*r+1].curve.B.a), mpz_get_str(NULL, base, resp1[2*r+1].curve.B.b),
-                        mpz_get_str(NULL, base, resp1[2*r+1].curve.A24.a), mpz_get_str(NULL, base, resp1[2*r+1].curve.A24.b), NULL);
-      //printf("ch2R1: %s\n", ch2R1);  
-
-      char *ch2R2 = concat(mpz_get_str(NULL, base, resp2[2*r+1].x.a), mpz_get_str(NULL, base, resp2[2*r+1].x.b),
-                        mpz_get_str(NULL, base, resp2[2*r+1].y.a), mpz_get_str(NULL, base, resp2[2*r+1].y.b),
-                        mpz_get_str(NULL, base, resp2[2*r+1].z.a), mpz_get_str(NULL, base, resp2[2*r+1].z.b),
-                        mpz_get_str(NULL, base, resp2[2*r+1].curve.A.a), mpz_get_str(NULL, base, resp2[2*r+1].curve.A.b),
-                        mpz_get_str(NULL, base, resp2[2*r+1].curve.B.a), mpz_get_str(NULL, base, resp2[2*r+1].curve.B.b),
-                        mpz_get_str(NULL, base, resp2[2*r+1].curve.A24.a), mpz_get_str(NULL, base, resp2[2*r+1].curve.A24.b), NULL);
-      //printf("ch2R2: %s\n", ch2R2);  
-
-      rdata[r] = concat(E1, E2, ch, ch1R1, ch1R2, ch2R1, ch2R2, NULL);
-      //printf("\nround %d data: %s\n", r, rdata[r]);
-
-    }
-    *data = join_strings(rdata, "", rounds);
-    //printf("\n\nall data:\n%s\n", *data);
-}
-
 //1st argument specifies file with parameters, second # of times to run the key exchange. If second argument is null, only 1 iteration is performed
 int main(int argc, char *argv[]) {
     int iterations;
-    srand(time);
     
     if( argc < 2 ){
         printf("ERROR: Must specify file name in 1st command line agrument.\n");
@@ -2913,65 +2737,20 @@ int main(int argc, char *argv[]) {
     double totalTime=0;
     double avgTime;
     int errors=0;
-
-    //compute commitment/challenge/responses
-    int rounds=32; //also equal to the bit length of hash output (must be a multiple of 8)
-
-    MC *com1, *com2;
-    com1 = malloc(rounds * sizeof(MC));
-    com2 = malloc(rounds * sizeof(MC));
-    
-    int *chal;
-    chal = malloc(rounds * sizeof(int)); //first challenge bits
-    
-    MP *resp1, *resp2;
-    resp1 = malloc(2 * rounds * sizeof(MP));
-    resp2 = malloc(2 * rounds * sizeof(MP));
-
-    for(int r=0; r<rounds; r++) {
-      ZKP_identity(time, eA, eB, lA, lB, strA, lenA, strB, lenB, PA, QA, PB, QB, r, com1, com2, chal, resp1, resp2);
-      //printf("\nfinished round %d\n\n",r);
-    }
-
-    for(int r=0; r<rounds; r++) {
-      printf("Round %d\n\n", r);
-      printf("E1 = E/<R>------------------------\n");
-      print_Curve(&com1[r]);
-      printf("E2 = E/<S,R>------------------------\n");
-      print_Curve(&com2[r]);
-      printf("\nChallenge bit order: %d, %d\n\n", chal[r], 1-chal[r]);
-      printf("Challenge 1  ----------------\n");
-      print_MP(&resp1[2*r], "resp1");
-      print_MP(&resp2[2*r], "resp2");
-      printf("Challenge 2  ----------------\n");
-      print_MP(&resp1[2*r +1], "resp1");
-      print_MP(&resp2[2*r +1], "resp2");
-      printf("\n\n");
-    }
-
-    // put all the data into a string to compute hash
-    char *data = NULL;
-    string_data(&data, rounds, com1, com2, chal, resp1, resp2);
-    printf("data: %s\n",data);
-    printf("data length %u\n", strlen(data));
-
-    char *testmsg = "Keccak-224 Test Hash";
-    uint8_t testhash1[64];
-    char testhash2[rounds/8];
-    keccak((uint8_t*) testmsg, strlen(testmsg), testhash1, 28);
-    printf("testhash: ");
-    for(int i=0; i<28; i++){
-      printf("%02X ", testhash1[i]);
-    }
-
-    int hashlength = rounds/8;
-    uint8_t hash[hashlength];
-    keccak(data, strlen(data), hash, hashlength);
-    printf("hashlength: %d\n", hashlength);
-    printf("hash: %x\n", hash);
-
     
 
+    ZKP_identity(time, eA, eB, lA, lB, strA, lenA, strB, lenB, PA, QA, PB, QB);
+    ZKP_identity(time, eA, eB, lA, lB, strA, lenA, strB, lenB, PA, QA, PB, QB);
+    ZKP_identity(time, eA, eB, lA, lB, strA, lenA, strB, lenB, PA, QA, PB, QB);
+    ZKP_identity(time, eA, eB, lA, lB, strA, lenA, strB, lenB, PA, QA, PB, QB);
+    ZKP_identity(time, eA, eB, lA, lB, strA, lenA, strB, lenB, PA, QA, PB, QB);
+    ZKP_identity(time, eA, eB, lA, lB, strA, lenA, strB, lenB, PA, QA, PB, QB);
+    ZKP_identity(time, eA, eB, lA, lB, strA, lenA, strB, lenB, PA, QA, PB, QB);
+    ZKP_identity(time, eA, eB, lA, lB, strA, lenA, strB, lenB, PA, QA, PB, QB);
+    ZKP_identity(time, eA, eB, lA, lB, strA, lenA, strB, lenB, PA, QA, PB, QB);
+    ZKP_identity(time, eA, eB, lA, lB, strA, lenA, strB, lenB, PA, QA, PB, QB);
+    ZKP_identity(time, eA, eB, lA, lB, strA, lenA, strB, lenB, PA, QA, PB, QB);
+    ZKP_identity(time, eA, eB, lA, lB, strA, lenA, strB, lenB, PA, QA, PB, QB);
 
     /*
     for(i; i<iterations; i++){
