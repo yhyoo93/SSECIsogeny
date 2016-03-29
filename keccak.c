@@ -74,7 +74,7 @@ void keccakf(uint64_t st[25], int rounds)
 int keccak(const uint8_t *in, int inlen, uint8_t *md, int mdlen)
 {
     uint64_t st[25];    
-    uint8_t temp[144];
+    uint8_t temp[200];
     int i, rsiz, rsizw;
 
     rsiz = 200 - 2 * mdlen;
@@ -82,22 +82,37 @@ int keccak(const uint8_t *in, int inlen, uint8_t *md, int mdlen)
     
     memset(st, 0, sizeof(st));
 
+    //printf("check1\n");
+
     for ( ; inlen >= rsiz; inlen -= rsiz, in += rsiz) {
         for (i = 0; i < rsizw; i++)
             st[i] ^= ((uint64_t *) in)[i];
         keccakf(st, KECCAK_ROUNDS);
     }
+
+    //printf("check2\n");
+    
+    //printf("in: %d, inlen")
     
     // last block and padding
     memcpy(temp, in, inlen);
     temp[inlen++] = 1;
+
+    //printf("check2.5\n");
+
     memset(temp + inlen, 0, rsiz - inlen);
     temp[rsiz - 1] |= 0x80;
+
+    //printf("check3\n");
 
     for (i = 0; i < rsizw; i++)
         st[i] ^= ((uint64_t *) temp)[i];
 
+    //printf("check4\n");
+
     keccakf(st, KECCAK_ROUNDS);
+
+    //printf("check5\n");
 
     memcpy(md, st, mdlen);
 
