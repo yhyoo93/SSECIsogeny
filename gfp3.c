@@ -2877,7 +2877,7 @@ void string_data(char** data, int rounds, MC **com1, MC **com2, int *chal, MP **
                         mpz_get_str(NULL, base, resp2[2*r+1]->curve.A24.a), mpz_get_str(NULL, base, resp2[2*r+1]->curve.A24.b), NULL);
       //printf("ch2R2: %s\n", ch2R2);  
 
-      rdata[r] = concat(E1, E2, ch, ch1R1, ch1R2, ch2R1, ch2R2, NULL);
+      rdata[r] = concat(E1, E2, ch, ch1R1, ch1R2, ch2R1, ch2R2, hresp[2*r], hresp[2*r+1], NULL);
       //printf("\nround %d data: %s\n", r, rdata[r]);
 
     }
@@ -2948,7 +2948,7 @@ int main(int argc, char *argv[]) {
     int errors=0;
 
     //compute commitment/challenge/responses
-    int rounds=8; //also equal to the bit length of hash output (must be a multiple of 8)
+    int rounds=32; //also equal to the bit length of hash output (must be a multiple of 8)
 
     MC **com1, **com2;
     com1 = malloc(rounds * sizeof(MC*));
