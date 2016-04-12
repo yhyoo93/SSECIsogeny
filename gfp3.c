@@ -1478,6 +1478,8 @@ void * apply_t(void * thr){
     if (Px && Py && Pz){  \
       apply(Px, Py, Pz, obj, *Px, *Py, *Pz);\
      }                           \
+    if (Qx && Qy && Qz)         \
+      apply(Qx, Qy, Qz, obj, *Qx, *Qy, *Qz);    \
   } while (0)              
 #define COMP_ISOG(comp,obj) do {    \
     Q_POP(tail, tmp);         \
@@ -1512,7 +1514,8 @@ void *p3(){
 void push_through_iso(GF *A, GF *B, GF *A24,
                       const GF Rx, const GF Rz,
                       const int ell, int *strategy, int h,
-                      GF *Px, GF *Py, GF *Pz, int e) {
+                      GF *Px, GF *Py, GF *Pz,
+                      GF *Qx, GF *Qy, GF *Qz, int e) {
   
     GF_params* field = A->parent;
     int split, i, first = 1, first2=1;
@@ -2386,8 +2389,11 @@ double ZKP_identity(double *time, char * eA, char * eB, char * lA_str, char * lB
   print_MP(R, "R");
 
 
-  //printf("**************** E *****************\n");
-  //print_Curve(&(*PA).curve);
+
+
+
+  printf("**************** E *****************\n");
+  print_Curve(&(*PA).curve);
   
 
 
@@ -2396,7 +2402,7 @@ double ZKP_identity(double *time, char * eA, char * eB, char * lA_str, char * lB
   set_Curve(E_S, *A, *B, *A24);
   //printf("Pre computation\n");
   //print_Curve(E_S);
-  push_through_iso(&(*E_S).A, &(*E_S).B, &(*E_S).A24, *Sx, *Sz, lA, strA, lenA-1, Rx, Ry, Rz, eA_num);
+  push_through_iso(&(*E_S).A, &(*E_S).B, &(*E_S).A24, *Sx, *Sz, lA, strA, lenA-1, Rx, Ry, Rz, NULL,NULL,NULL, eA_num);
   //printf("Post computation\n");
   //print_Curve(E_S);
 
@@ -2416,7 +2422,7 @@ double ZKP_identity(double *time, char * eA, char * eB, char * lA_str, char * lB
   //printf("Pre computation\n");
   //print_Curve(E_SR);
 
-  push_through_iso(&(*E_SR).A, &(*E_SR).B, &(*E_SR).A24, *Rx, *Rz, lB, strB, lenB-1, NULL, NULL, NULL, eB_num);
+  push_through_iso(&(*E_SR).A, &(*E_SR).B, &(*E_SR).A24, *Rx, *Rz, lB, strB, lenB-1, NULL, NULL, NULL, NULL, NULL, NULL,  eB_num);
   
   //printf("Post computation\n");
   //print_Curve(E_SR);
@@ -2439,7 +2445,7 @@ double ZKP_identity(double *time, char * eA, char * eB, char * lA_str, char * lB
   //printf("Pre computation\n");
   //print_Curve(E_R);
   
-  push_through_iso(&(*E_R).A, &(*E_R).B, &(*E_R).A24, *Rx, *Rz, lB, strB, lenB-1, Sx, Sy, Sz, eB_num);
+  push_through_iso(&(*E_R).A, &(*E_R).B, &(*E_R).A24, *Rx, *Rz, lB, strB, lenB-1, Sx, Sy, Sz, NULL, NULL, NULL, eB_num);
 
   //printf("Post computation\n");  
   //print_Curve(E_R);
@@ -2453,7 +2459,7 @@ double ZKP_identity(double *time, char * eA, char * eB, char * lA_str, char * lB
 
   // compute psi':E/<R> -> E/<R,S> 
   copy_MC(E_RS, *E_R);
-  push_through_iso(&(*E_RS).A, &(*E_RS).B, &(*E_RS).A24, *Sx, *Sz, lA, strA, lenA-1, NULL, NULL, NULL, eA_num);
+  push_through_iso(&(*E_RS).A, &(*E_RS).B, &(*E_RS).A24, *Sx, *Sz, lA, strA, lenA-1, NULL, NULL, NULL, NULL, NULL, NULL, eA_num);
   
   //printf("*************** E/<R,S> ****************\n");
   //print_Curve(E_RS);
