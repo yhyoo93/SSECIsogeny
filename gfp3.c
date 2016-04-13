@@ -2293,12 +2293,6 @@ double ss_isogeny_exchange_dfc(double *time, char * eA, char * eB, char * lA_str
 
 double sign_verify(double *time, char * eA_str, char * eB_str, char * lA_str, char * lB_str, int *strA, int lenA, int *strB, int lenB, 
                     MP *PA, MP *QA, MP *PB, MP *QB, int rounds){
-  int good=0;
-
-  int eA = atoi(eA_str);
-  int eB = atoi(eB_str);
-
-  int lA = atoi(lA_str);
   int lB = atoi(lB_str);
 
   // set up curves
@@ -2371,7 +2365,7 @@ double sign_verify(double *time, char * eA_str, char * eB_str, char * lA_str, ch
   init_GF(Sy, PA->x.parent);
   init_GF(Sz, PA->x.parent);
 
-  shamir(Sx, Sy, Sz, PA->curve.A, PA->curve.B, PA->x, PA->y, PA->z, QA->x, QA->y, QA->z, mA, nA);
+  shamir(Sx, Sy, Sz, E->A, E->B, PA->x, PA->y, PA->z, QA->x, QA->y, QA->z, mA, nA);
 
   copy_GF(&S->x, *Sx);
   copy_GF(&S->y, *Sy);
@@ -2410,12 +2404,116 @@ double sign_verify(double *time, char * eA_str, char * eB_str, char * lA_str, ch
 
   push_through_iso(&E_S->A, &E_S->B, &E_S->A24, *Sx, *Sz, lA, strA, lenA-1, PBx, PBy, PBz, QBx, QBy, QBz, eA);
 
+  copy_GF(&phiPB->x, PBx);
+  copy_GF(&phiPB->y, PBy);
+  copy_GF(&phiPB->z, PBz);
+  copy_GF(&phiQB->x, QBx);
+  copy_GF(&phiQB->y, QBy);
+  copy_GF(&phiQB->z, QBz);
+
+  copy_MC(&phiPB->curve, *E_S);
+  copy_MC(&phiQB->curve, *E_S);
+
   print_Curve(E_S);
+
 
 
 
   /////////////////////////////////////////////////////////////////////////////////
   // run the ZKP rounds
+  MP *R_array[rounds];
+  MP *phiR_array[rounds];
+  MP *psiS_array[rounds];
+
+  MC *E_R_array[rounds];
+  MC *E_RS_array[rounds];
+
+  for(int r=0; r < rounds; r++) {
+    printf("round %d\n",r);
+
+    printf("----------Choosing random R and computing phi(R)\n");
+    
+    R_array[r] = malloc(sizeof(MP));
+    init_MP(R_array[r]);
+    
+    mpz_t *mB, *nB;
+    mB = malloc(sizeof(mpz_t));
+    nB = malloc(sizeof(mpz_t));
+    rand_subgroup(mB,nB,lB_str,eB_str);
+
+    GF *Rx, *Ry, *Rz;
+    Rx = malloc(sizeof(GF));
+    Ry = malloc(sizeof(GF));
+    Rz = malloc(sizeof(GF));
+    init_GF(Rx, PA->x.parent);
+    init_GF(Ry, PA->x.parent);
+    init_GF(Rz, PA->x.parent);
+
+    shamir(Rx, Ry, Rz, E->A, E->B, PB->x, PB->y, PB->z, QB->x, QB->y, QB->z, mB, nB);
+
+    copy_GF(&R_array[r]->x, *Rx);
+    copy_GF(&R_array[r]->y, *Ry);
+    copy_GF(&R_array[r]->z, *Rz);
+    copy_MC(&R_array[r]->curve, *E);
+
+    // Compute phi(R) by mB*phi(PB)+nB*phi(QB) instead of pushing through isogeny
+    phiR_array[r] = malloc(sizeof(MP));
+    init_MP(phiR_array[r]);
+
+    GF *phiRx, *phiRy, *phiRz;
+    phiRx = malloc(sizeof(GF));
+    phiRy = malloc(sizeof(GF));
+    phiRz = malloc(sizeof(GF));
+    init_GF(phiRx, PA->x.parent);
+    init_GF(phiRy, PA->x.parent);
+    init_GF(phiRz, PA->x.parent);
+
+    shamir(phiRx, phiRy, phiRz, E_S->A, E_S->B, phiPB->x, phiPB->y, phiPB->z, phiQB->x, phiQB->y, phiQB->z, mB, nB);
+    
+    copy_GF(&phiR_array[r]->x, *phiRx);
+    copy_GF(&phiR_array[r]->y, *phiRy);
+    copy_GF(&phiR_array[r]->z, *phiRz);
+    copy_MC(&phiR_array[r]->curve, *E_S);
+
+
+    /////////////////////////////////////////////////////////
+    printf("----------Computing E/<R> and psi(S)\n");
+
+    E_R_array[r] = malloc(sizeof(MC));
+    init_MC(E_R_array[r]);
+    copy_MC(E_R_array[r], *E);
+
+    GF *Sx_temp, *Sy_temp, *Sz_temp;
+    Sx_temp = malloc(sizeof(GF));
+    Sy_temp = malloc(sizeof(GF));
+    Sz_temp = malloc(sizeof(GF));
+    init_GF(Sx_temp, PA->x.parent);
+    init_GF(Sy_temp, PA->x.parent);
+    init_GF(Sz_temp, PA->x.parent);
+    copy_GF(Sx_temp, *Sx);
+    copy_GF(Sy_temp, *Sy);
+    copy_GF(Sz_temp, *Sz);
+    
+    push_through_iso(&E_R_array[r]->A, &E_R_array[r]->B, &E_R_array[r]->A24, *Rx, *Rz, lB, strB, lenB-1, Sx_temp, Sy_temp, Sz_temp, NULL, NULL, NULL, eB);
+
+    psiS_array[r] = malloc(sizeof(MP));
+    init_MP(psiS_array[r]);
+
+    copy_GF(&psiS_array[r]->x, *Sx_temp);
+    copy_GF(&psiS_array[r]->y, *Sy_temp);
+    copy_GF(&psiS_array[r]->z, *Sz_temp);
+    copy_MC(&psiS_array[r]->curve, *E_R_array[r]);
+
+
+    //////////////////////////////////////////////////////
+    printf("------------Computing E/<R,S>\n");
+
+
+
+
+  }
+
+
 
 
 
