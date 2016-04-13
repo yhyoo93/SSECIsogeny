@@ -2291,15 +2291,134 @@ double ss_isogeny_exchange_dfc(double *time, char * eA, char * eB, char * lA_str
 }
 
 
-double ZKP_identity(double *time, char * eA, char * eB, char * lA_str, char * lB_str, int *strA, int lenA, int *strB, int lenB, MP *PA, MP *QA, MP *PB, MP *QB,
-                    int round, MC **com1, MC **com2, int *chal, MP **resp1, MP **resp2){
+double sign_verify(double *time, char * eA_str, char * eB_str, char * lA_str, char * lB_str, int *strA, int lenA, int *strB, int lenB, 
+                    MP *PA, MP *QA, MP *PB, MP *QB, int rounds){
   int good=0;
-  int lA, lB;
-  lA = atoi(lA_str);
-  lB = atoi(lB_str);
 
-  int eA_num = atoi(eA);
-  int eB_num = atoi(eB);
+  int eA = atoi(eA_str);
+  int eB = atoi(eB_str);
+
+  int lA = atoi(lA_str);
+  int lB = atoi(lB_str);
+
+  // set up curves
+  MC *E, *E_S, *E_R, *E_SR, *E_RS;
+  E = malloc(sizeof(MC));
+  E_S = malloc(sizeof(MC));
+  E_R = malloc(sizeof(MC));
+  E_SR = malloc(sizeof(MC));
+  E_RS = malloc(sizeof(MC));
+  init_MC(E);
+  init_MC(E_S);
+  init_MC(E_R);
+  init_MC(E_SR);
+  init_MC(E_RS);
+
+  copy_MC(E, PA->curve);
+  copy_MC(E_S, PA->curve);
+  copy_MC(E_R, PA->curve);
+
+  printf("******************** E ********************\n");
+  print_curve(E);
+
+
+  // set up points
+  MP *S, *R, *psiS, *phiR;
+  MP *psiPA, *psiQA, *phiPB, *phiQB, *QPA, *PQA, *QPB, *PQB;
+  S = malloc(sizeof(MP));
+  R = malloc(sizeof(MP));
+  psiS = malloc(sizeof(MP));
+  phiR = malloc(sizeof(MP));
+  init_MP(S);
+  init_MP(R);
+  init_MP(psiS);
+  init_MP(phiR);
+
+  psiPA = malloc(sizeof(MP));
+  psiQA = malloc(sizeof(MP));
+  phiPB = malloc(sizeof(MP));
+  phiQB = malloc(sizeof(MP));
+  QPA = malloc(sizeof(MP));
+  PQA = malloc(sizeof(MP));
+  QPB = malloc(sizeof(MP));
+  PQB = malloc(sizeof(MP));
+  init_MP(phiPB);
+  init_MP(phiQB);
+  init_MP(phiPA);
+  init_MP(phiQA);
+  init_MP(QPB);
+  init_MP(PQB);
+  init_MP(QPA);
+  init_MP(PQA);
+
+  subtract(QPA, *QA, *PA);
+  subtract(PQA, *PA, *QA);
+  subtract(QPB, *QB, *PB);
+  subtract(PQB, *PB, *QB);
+
+
+  printf("---------------------Computing Peggy's Secret S\n");
+  mpz_t *mA, *nA;
+  mA = malloc(sizeof(mpz_t));
+  nA = malloc(sizeof(mpz_t));
+  rand_subgroup(mA,nA,lA_str,eA_str);
+
+  GF *Sx, *Sy, *Sz;
+  Sx = malloc(sizeof(GF));
+  Sy = malloc(sizeof(GF));
+  Sz = malloc(sizeof(GF));
+  init_GF(Sx, PA->x.parent);
+  init_GF(Sy, PA->x.parent);
+  init_GF(Sz, PA->x.parent);
+
+  shamir(Sx, Sy, Sz, PA->curve.A, PA->curve.B, PA->x, PA->y, PA->z, QA->x, QA->y, QA->z, mA, nA);
+
+  copy_GF(&S->x, *Sx);
+  copy_GF(&S->y, *Sy);
+  copy_GF(&S->z, *Sz);
+  copy_MC(&S->curve, *E);
+
+
+  printf("------------------Computing E/<S>\n");
+  GF *PBx, *PBy, *PBz, *QBx, *QBy, *QBz;
+  PBx = malloc(sizeof(GF));
+  PBy = malloc(sizeof(GF));
+  PBz = malloc(sizeof(GF));
+  QBx = malloc(sizeof(GF));
+  QBy = malloc(sizeof(GF));
+  QBz = malloc(sizeof(GF));
+  init_GF(PBx, PA->x.parent);
+  init_GF(PBy, PA->x.parent);
+  init_GF(PBz, PA->x.parent);
+  init_GF(QBx, PA->x.parent);
+  init_GF(QBy, PA->x.parent);
+  init_GF(QBz, PA->x.parent);
+  copy_GF(PBx, PB->x);
+  copy_GF(PBy, PB->y);
+  copy_GF(PBz, PB->z);
+  copy_GF(QBx, QB->x);
+  copy_GF(QBy, QB->y);
+  copy_GF(QBz, QB->z);
+
+  GF *A_S, *B_S, *A24_S;
+  init_GF(A_S, PA->x.parent);
+  init_GF(B_S, PA->x.parent);
+  init_GF(A24_S, PA->x.parent);
+  copy_GF(A_S, E_S->A);
+  copy_GF(B_S, E_S->B);
+  copy_GF(A24_S, E_S->A24);
+
+  push_through_iso(&E_S->A, &E_S->B, &E_S->A24, *Sx, *Sz, lA, strA, lenA-1, PBx, PBy, PBz, QBx, QBy, QBz, eA);
+
+  print_Curve(E_S);
+
+
+
+  /////////////////////////////////////////////////////////////////////////////////
+  // run the ZKP rounds
+
+
+
 
 
   // use one of PA, QA for S and one of PB, QB for R until we can generate random points with sage.
@@ -2946,15 +3065,19 @@ int main(int argc, char *argv[]) {
     for(k; k<lenB; k++)
         strB[k] = strB_t[k]; 
 
-    //run the key exchange 'iterations' number of times and calculate the arverage time taken
-    int i=0;
-    int good = 0;
-    double totalTime=0;
-    double avgTime;
-    int errors=0;
+    
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    int rounds=32; //also equal to the bit length of hash output (must be a multiple of 8)
+    sign_verify(time, eA, eB, lA, lB, strA, lenA, strB, lenB, PA, QA, PB, QB, rounds);
+
+
+
+
+
 
     //compute commitment/challenge/responses
-    int rounds=32; //also equal to the bit length of hash output (must be a multiple of 8)
+    
 
     MC **com1, **com2;
     com1 = malloc(rounds * sizeof(MC*));
