@@ -2293,6 +2293,12 @@ double ss_isogeny_exchange_dfc(double *time, char * eA, char * eB, char * lA_str
 
 double sign_verify(double *time, char * eA_str, char * eB_str, char * lA_str, char * lB_str, int *strA, int lenA, int *strB, int lenB, 
                     MP *PA, MP *QA, MP *PB, MP *QB, int rounds){
+  int good=0;
+
+  int eA = atoi(eA_str);
+  int eB = atoi(eB_str);
+
+  int lA = atoi(lA_str);
   int lB = atoi(lB_str);
 
   // set up curves
@@ -2313,49 +2319,31 @@ double sign_verify(double *time, char * eA_str, char * eB_str, char * lA_str, ch
   copy_MC(E_R, PA->curve);
 
   printf("******************** E ********************\n");
-  print_curve(E);
+  print_Curve(E);
 
 
   // set up points
-  MP *S, *R, *psiS, *phiR;
-  MP *psiPA, *psiQA, *phiPB, *phiQB, *QPA, *PQA, *QPB, *PQB;
+  MP *S;
   S = malloc(sizeof(MP));
-  R = malloc(sizeof(MP));
-  psiS = malloc(sizeof(MP));
-  phiR = malloc(sizeof(MP));
   init_MP(S);
-  init_MP(R);
-  init_MP(psiS);
-  init_MP(phiR);
 
-  psiPA = malloc(sizeof(MP));
-  psiQA = malloc(sizeof(MP));
+  MP *phiPB, *phiQB;
   phiPB = malloc(sizeof(MP));
   phiQB = malloc(sizeof(MP));
-  QPA = malloc(sizeof(MP));
-  PQA = malloc(sizeof(MP));
-  QPB = malloc(sizeof(MP));
-  PQB = malloc(sizeof(MP));
   init_MP(phiPB);
   init_MP(phiQB);
-  init_MP(phiPA);
-  init_MP(phiQA);
-  init_MP(QPB);
-  init_MP(PQB);
-  init_MP(QPA);
-  init_MP(PQA);
-
-  subtract(QPA, *QA, *PA);
-  subtract(PQA, *PA, *QA);
-  subtract(QPB, *QB, *PB);
-  subtract(PQB, *PB, *QB);
 
 
   printf("---------------------Computing Peggy's Secret S\n");
   mpz_t *mA, *nA;
   mA = malloc(sizeof(mpz_t));
   nA = malloc(sizeof(mpz_t));
+  mpz_init(mA);
+  mpz_init(nA);
+
   rand_subgroup(mA,nA,lA_str,eA_str);
+
+  printf("b\n");
 
   GF *Sx, *Sy, *Sz;
   Sx = malloc(sizeof(GF));
@@ -2365,7 +2353,11 @@ double sign_verify(double *time, char * eA_str, char * eB_str, char * lA_str, ch
   init_GF(Sy, PA->x.parent);
   init_GF(Sz, PA->x.parent);
 
+  printf("a\n");
+
   shamir(Sx, Sy, Sz, E->A, E->B, PA->x, PA->y, PA->z, QA->x, QA->y, QA->z, mA, nA);
+
+  printf("shamir\n");
 
   copy_GF(&S->x, *Sx);
   copy_GF(&S->y, *Sy);
@@ -2395,6 +2387,9 @@ double sign_verify(double *time, char * eA_str, char * eB_str, char * lA_str, ch
   copy_GF(QBz, QB->z);
 
   GF *A_S, *B_S, *A24_S;
+  A_S = malloc(sizeof(GF));
+  B_S = malloc(sizeof(GF));
+  A24_S = malloc(sizeof(GF));
   init_GF(A_S, PA->x.parent);
   init_GF(B_S, PA->x.parent);
   init_GF(A24_S, PA->x.parent);
@@ -2404,12 +2399,12 @@ double sign_verify(double *time, char * eA_str, char * eB_str, char * lA_str, ch
 
   push_through_iso(&E_S->A, &E_S->B, &E_S->A24, *Sx, *Sz, lA, strA, lenA-1, PBx, PBy, PBz, QBx, QBy, QBz, eA);
 
-  copy_GF(&phiPB->x, PBx);
-  copy_GF(&phiPB->y, PBy);
-  copy_GF(&phiPB->z, PBz);
-  copy_GF(&phiQB->x, QBx);
-  copy_GF(&phiQB->y, QBy);
-  copy_GF(&phiQB->z, QBz);
+  copy_GF(&phiPB->x, *PBx);
+  copy_GF(&phiPB->y, *PBy);
+  copy_GF(&phiPB->z, *PBz);
+  copy_GF(&phiQB->x, *QBx);
+  copy_GF(&phiQB->y, *QBy);
+  copy_GF(&phiQB->z, *QBz);
 
   copy_MC(&phiPB->curve, *E_S);
   copy_MC(&phiQB->curve, *E_S);
@@ -2439,6 +2434,9 @@ double sign_verify(double *time, char * eA_str, char * eB_str, char * lA_str, ch
     mpz_t *mB, *nB;
     mB = malloc(sizeof(mpz_t));
     nB = malloc(sizeof(mpz_t));
+    mpz_init(mB);
+    mpz_init(nB);
+
     rand_subgroup(mB,nB,lB_str,eB_str);
 
     GF *Rx, *Ry, *Rz;
@@ -2508,17 +2506,36 @@ double sign_verify(double *time, char * eA_str, char * eB_str, char * lA_str, ch
     //////////////////////////////////////////////////////
     printf("------------Computing E/<R,S>\n");
 
+    E_RS_array[r] = malloc(sizeof(MC));
+    init_MC(E_RS_array[r]);
+    copy_MC(E_RS_array[r], *E_R_array[r]);
+
+    push_through_iso(&E_RS_array[r]->A, &E_RS_array[r]->B, &E_RS_array[r]->A24, psiS_array[r]->x, psiS_array[r]->z, lA, strA, lenA-1, NULL, NULL, NULL, NULL, NULL, NULL, eA);
 
 
+
+    print_Curve(E_RS_array[r]);
+
+/*
+    // check with E/<S,R>
+    MC *E_SR;
+    E_SR = malloc(sizeof(MC));
+    init_MC(E_SR);
+    copy_MC(E_SR, *E_S);
+
+    push_through_iso(&E_SR->A, &E_SR->B, &E_SR->A24, phiR_array[r]->x, phiR_array[r]->z, lB, strB, lenB-1, NULL, NULL, NULL, NULL, NULL, NULL, eB);
+
+    print_Curve(E_SR); */
 
   }
 
+  return 0;
 
 
 
 
 
-
+/*
   // use one of PA, QA for S and one of PB, QB for R until we can generate random points with sage.
   MP *S, *R, *psiS, *phiR;
   S = malloc(sizeof(MP));
@@ -2648,7 +2665,7 @@ double sign_verify(double *time, char * eA_str, char * eB_str, char * lA_str, ch
   print_GF(*Rx, "Rx");
   print_GF(*Ry, "Ry");
   print_GF(*Rz, "Rz");
-*/
+*/ /*
   copy_GF(Rx, (*R).x);
   copy_GF(Ry, (*R).y);
   copy_GF(Rz, (*R).z);
@@ -3166,14 +3183,14 @@ int main(int argc, char *argv[]) {
     
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    int rounds=32; //also equal to the bit length of hash output (must be a multiple of 8)
+    int rounds=64; //also equal to the bit length of hash output (must be a multiple of 8)
     sign_verify(time, eA, eB, lA, lB, strA, lenA, strB, lenB, PA, QA, PB, QB, rounds);
 
 
 
 
 
-
+/*
     //compute commitment/challenge/responses
     
 
@@ -3241,7 +3258,7 @@ int main(int argc, char *argv[]) {
         printf("%02X", hr2[i]);
       }
       printf("\n");
-      */
+      */ /*
 
       //converting uint8_t array into char array
       char h1[hrlen+1];
@@ -3260,7 +3277,7 @@ int main(int argc, char *argv[]) {
         printf("%d ", (uint8_t)h2[i]);
       }
       printf("\nstring1: %s\nstring2: %s\n", h1, h2);
-*/
+*/ /*
 
       hresp[2*r] = h1;
       hresp[2*r+1] = h2;
@@ -3302,7 +3319,7 @@ int main(int argc, char *argv[]) {
             errors +=1;
     }
     */
-    
+    /*
     avgTime = totalTime/(iterations*1.0);
     printf ("\nAverage Time for %d iteration(s) (sec) : %f \n", iterations, avgTime);
     printf ("\n Number of key exchanges NOT completed successfully : %d \n", errors);
