@@ -2291,8 +2291,8 @@ double ss_isogeny_exchange_dfc(double *time, char * eA, char * eB, char * lA_str
 }
 
 
-double sign_verify(double *time, char * eA_str, char * eB_str, char * lA_str, char * lB_str, int *strA, int lenA, int *strB, int lenB, 
-                    MP *PA, MP *QA, MP *PB, MP *QB, int rounds){
+double run_ZKP(double *time, char * eA_str, char * eB_str, char * lA_str, char * lB_str, int *strA, int lenA, int *strB, int lenB, 
+                    MP *PA, MP *QA, MP *PB, MP *QB, int rounds, MP **R_array, MP **phiR_array, MP **psiS_array, MC **E_R_array, MC **E_RS_array, MC **E_SR_array){
   int good=0;
 
   int eA = atoi(eA_str);
@@ -2343,8 +2343,6 @@ double sign_verify(double *time, char * eA_str, char * eB_str, char * lA_str, ch
 
   rand_subgroup(mA,nA,lA_str,eA_str);
 
-  printf("b\n");
-
   GF *Sx, *Sy, *Sz;
   Sx = malloc(sizeof(GF));
   Sy = malloc(sizeof(GF));
@@ -2353,11 +2351,7 @@ double sign_verify(double *time, char * eA_str, char * eB_str, char * lA_str, ch
   init_GF(Sy, PA->x.parent);
   init_GF(Sz, PA->x.parent);
 
-  printf("a\n");
-
   shamir(Sx, Sy, Sz, E->A, E->B, PA->x, PA->y, PA->z, QA->x, QA->y, QA->z, mA, nA);
-
-  printf("shamir\n");
 
   copy_GF(&S->x, *Sx);
   copy_GF(&S->y, *Sy);
@@ -2416,12 +2410,6 @@ double sign_verify(double *time, char * eA_str, char * eB_str, char * lA_str, ch
 
   /////////////////////////////////////////////////////////////////////////////////
   // run the ZKP rounds
-  MP *R_array[rounds];
-  MP *phiR_array[rounds];
-  MP *psiS_array[rounds];
-
-  MC *E_R_array[rounds];
-  MC *E_RS_array[rounds];
 
   for(int r=0; r < rounds; r++) {
     printf("round %d\n",r);
@@ -2514,18 +2502,15 @@ double sign_verify(double *time, char * eA_str, char * eB_str, char * lA_str, ch
 
 
 
-    print_Curve(E_RS_array[r]);
+    //print_Curve(E_RS_array[r]);
 
-/*
+
     // check with E/<S,R>
-    MC *E_SR;
-    E_SR = malloc(sizeof(MC));
-    init_MC(E_SR);
-    copy_MC(E_SR, *E_S);
+    E_SR_array[r] = malloc(sizeof(MC));
+    init_MC(E_SR_array[r]);
+    copy_MC(E_SR_array[r], *E_S);
 
-    push_through_iso(&E_SR->A, &E_SR->B, &E_SR->A24, phiR_array[r]->x, phiR_array[r]->z, lB, strB, lenB-1, NULL, NULL, NULL, NULL, NULL, NULL, eB);
-
-    print_Curve(E_SR); */
+    push_through_iso(&E_SR_array[r]->A, &E_SR_array[r]->B, &E_SR_array[r]->A24, phiR_array[r]->x, phiR_array[r]->z, lB, strB, lenB-1, NULL, NULL, NULL, NULL, NULL, NULL, eB);
 
   }
 
@@ -3183,10 +3168,31 @@ int main(int argc, char *argv[]) {
     
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    int rounds=64; //also equal to the bit length of hash output (must be a multiple of 8)
-    sign_verify(time, eA, eB, lA, lB, strA, lenA, strB, lenB, PA, QA, PB, QB, rounds);
+    int rounds=32; //also equal to the bit length of hash output (must be a multiple of 8)
 
+    MP *R_array[rounds];
+    MP *phiR_array[rounds];
+    MP *psiS_array[rounds];
 
+    MC *E_R_array[rounds];
+    MC *E_RS_array[rounds];
+    MC *E_SR_array[rounds];
+    
+    run_ZKP(time, eA, eB, lA, lB, strA, lenA, strB, lenB, PA, QA, PB, QB, rounds, R_array, phiR_array, psiS_array, E_R_array, E_RS_array, E_SR_array);
+
+    for (int r=0; r<rounds; r++) {
+      printf("\n\nround %d \n", r+1);
+      print_MP(R_array[r], "R");
+      print_MP(phiR_array[r], "phi(R)");
+      print_MP(psiS_array[r], "psi(S)");
+      printf("********* E/<R> *********\n");
+      print_Curve(E_R_array[r]);
+      printf("********* E/<R,S> *********\n");
+      print_Curve(E_RS_array[r]);
+      printf("********* E/<S,R> *********\n");
+      print_Curve(E_SR_array[r]);
+      
+    }
 
 
 
