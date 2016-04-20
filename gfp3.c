@@ -1963,333 +1963,6 @@ void rand_subgroup(mpz_t *m, mpz_t *n, char * l, char * e){
     free(num);free(_l);free(_e);free(tmp1);free(le);free(le1);free(l1);
     
 }
- 
-void keygen_c_dfc1(MP *Pother2, MP *Qother2, mpz_t M, mpz_t N, int ell, int *strat, int len, MP P, MP Q, MP Pother, MP Qother, MP QP, MP PQ, int e){
-
-    
-    GF *Px, *Py, *Pz, *Qx, *Qy, *Qz, *Rx, *Rz, *tmp, *A, *B, *A24;
-   // MP *QP, *PQ; 
-    MC *E;
-  //  struct timeval tv1, tv2, diff;
-
-    Rx = malloc(sizeof(GF));
-    init_GF(Rx,P.x.parent);
-    Rz = malloc(sizeof(GF));
-    init_GF(Rz,P.x.parent);
-    tmp = malloc(sizeof(GF));
-    init_GF(tmp,P.x.parent);
-    Px = malloc(sizeof(GF));
-    init_GF(Px,P.x.parent);
-    Py = malloc(sizeof(GF));
-    init_GF(Py,P.x.parent);
-    Pz = malloc(sizeof(GF));
-    init_GF(Pz,P.x.parent);
-    Qx = malloc(sizeof(GF));
-    init_GF(Qx,P.x.parent);
-    Qy = malloc(sizeof(GF));
-    init_GF(Qy,P.x.parent);
-    Qz = malloc(sizeof(GF));
-    init_GF(Qz,P.x.parent);
-
-    if(mpz_cmp_ui(M, 1)==0){
-        mont_3ladder(Rx, Rz, N, P.x, P.z, Q.x, Q.z, (QP).x, (QP).z, P.curve.A24); 
-        
-    }else if(mpz_cmp_ui(N, 1)==0){
-        mont_3ladder(Rx, Rz, M, Q.x, Q.z, P.x, P.z, (PQ).x, (PQ).z, P.curve.A24);
-    }else{
-        
-        shamir(Rx, tmp, Rz, P.curve.A, P.curve.B, P.x, (GF)P.y, P.z, Q.x, (GF)Q.y, Q.z, M, N);
-        
-    }
-
-    E = malloc(sizeof(MC));
-    init_MC(E);
-    
-    A = malloc(sizeof(GF));
-    init_GF(A,P.x.parent);
-    copy_GF(A,P.curve.A);
-
-    B = malloc(sizeof(GF));
-    init_GF(B,P.x.parent);
-    copy_GF(B,P.curve.B);
-    
-    A24 = malloc(sizeof(GF));
-    init_GF(A24,P.x.parent);
-    copy_GF(A24,P.curve.A24);
-    
-    set_Curve(E, *A, *B, *A24);
-    
-    copy_GF(Px, Pother.x);
-    copy_GF(Py, Pother.y);
-    copy_GF(Pz, Pother.z);
-
-    copy_GF(Qx, Qother.x);
-    copy_GF(Qy, Qother.y);
-    copy_GF(Qz, Qother.z);
-    
-  //  gettimeofday(&tv1,NULL);
-  //  push_through_iso( &(*E).A, &(*E).B, &(*E).A24, *Rx, *Rz, ell, strat, len - 1, Px, Py, Pz, Qx, Qy, Qz, e);
-   // gettimeofday(&tv2,NULL);
-    
-    //timersub(&tv2, &tv1, &diff);
-    
- /*   printf("\n\ncount2iso: %d\n\n", count2iso);
-    printf("\n\ncount2mul: %d\n\n", count2mul);
-    printf("\n\ncount3iso: %d\n\n", count3iso);
-    printf("\n\ncount3mul: %d\n\n", count3mul);
-    printf ("\n\nPush_Through Time:%f \n\n", (double) diff.tv_usec/1000000 + diff.tv_sec);
-  */  
-    (*Pother2).x = *Px;
-    (*Pother2).y = *Py;
-    (*Pother2).z = *Pz;
-    
-    (*Qother2).x = *Qx;
-    (*Qother2).y = *Qy;
-    (*Qother2).z = *Qz;
-    
-    set_Curve_MC(Pother2, *E);
-    set_Curve_MC(Qother2, *E);
-    
-    free(Rx);free(Rz);free(tmp);free(Px);free(Py);free(Pz);free(Qx);free(Qy);free(Qz);free(E);free(A);free(B);
-    
-}
-
-
-void keygen_c_dfc2(MC *E, mpz_t M, mpz_t N, int ell, int *strat, int len, MP P, MP Q, int e){
-    
-    GF *Px, *Py, *Pz, *Qx, *Qy, *Qz, *Rx, *Rz, *tmp, *A, *B, *A24;
-    MP *QP, *PQ;
-   // struct timeval tv1, tv2, diff;
-    
-    Rx = malloc(sizeof(GF));
-    init_GF(Rx,P.x.parent);
-    Rz = malloc(sizeof(GF));
-    init_GF(Rz,P.x.parent);
-    tmp = malloc(sizeof(GF));
-    init_GF(tmp,P.x.parent);
-    
-    Px = malloc(sizeof(GF));
-    init_GF(Px,P.x.parent);
-    Py = malloc(sizeof(GF));
-    init_GF(Py,P.x.parent);
-    Pz = malloc(sizeof(GF));
-    init_GF(Pz,P.x.parent);
-    
-    Qx = malloc(sizeof(GF));
-    init_GF(Qx,P.x.parent);
-    Qy = malloc(sizeof(GF));
-    init_GF(Qy,P.x.parent);
-    Qz = malloc(sizeof(GF));
-    init_GF(Qz,P.x.parent);
-
-    copy_GF(Rx,P.x);
-   // set_GF(Rx, "0", "0");
-    copy_GF(Rz,P.x);
-   // set_GF(Rz, "0", "0");
-    copy_GF(tmp,P.x);
-   // set_GF(tmp, "0", "0");
-    
-    
-    if(mpz_cmp_ui(M, 1)==0){
-        QP = malloc(sizeof(MP));
-        init_MP(QP);
-        subtract(QP,Q,P);
-        mont_3ladder(Rx, Rz, N, P.x, P.z, Q.x, Q.z, (*QP).x, (*QP).z, P.curve.A24); 
-        free(QP);
-
-         
-    }else if(mpz_cmp_ui(N, 1)==0){
-        PQ = malloc(sizeof(MP));
-        init_MP(PQ);
-        subtract(PQ,P,Q);
-        mont_3ladder(Rx, Rz, M, Q.x, Q.z, P.x, P.z, (*PQ).x, (*PQ).z, P.curve.A24);
-        free(PQ);
-       
-    }else{
-            
-        shamir(Rx, tmp, Rz, P.curve.A, P.curve.B, P.x, (GF)P.y, P.z, Q.x, (GF)Q.y, Q.z, M, N);
-
-    }
-    
-    A = malloc(sizeof(GF));
-    init_GF(A,P.x.parent);
-    copy_GF(A,P.curve.A);
-    
-    B = malloc(sizeof(GF));
-    init_GF(B,P.x.parent);
-    copy_GF(B,P.curve.B);
-    
-    A24 = malloc(sizeof(GF));
-    init_GF(A24,P.x.parent);
-    copy_GF(A24,P.curve.A24);
-    
-    set_Curve(E, *A, *B, *A24);
-    
- //   gettimeofday(&tv1,NULL);
-   // push_through_iso( &(*E).A, &(*E).B, &(*E).A24, *Rx, *Rz, ell, strat, len - 1, NULL, NULL, NULL, NULL, NULL, NULL, e);
- //   gettimeofday(&tv2,NULL);
-    
-  //  timersub(&tv2, &tv1, &diff);
-    
-  /*  printf("\n\ncount2iso: %d\n\n", count2iso);
-    printf("\n\ncount2mul: %d\n\n", count2mul);
-    printf("\n\ncount3iso: %d\n\n", count3iso);
-    printf("\n\ncount3mul: %d\n\n", count3mul);
-    printf ("\n\nPush_Through Time:%f \n\n", (double) diff.tv_usec/1000000 + diff.tv_sec);
-   */ 
-    free(Rx);free(Rz);free(tmp);free(Px);free(Py);free(Pz);free(Qx);free(Qy);free(Qz);
-    
-    
-}
-   // returns 0 if shared keys are different, 1 if they are the same
-double ss_isogeny_exchange_dfc(double *time, char * eA, char * eB, char * lA_str, char * lB_str, int *strA, int lenA, int *strB, int lenB, MP *PA, MP *QA, MP *PB, MP *QB){
-    mpz_t *mA, *nA, *mB, *nB;
-    struct timeval tv1, tv2, tv3, tv4, tv5, tv6, tv7, tv8, diff1, diff2, diff3, diff4, total;
-    int lA, lB;
-    int good=0;
-    
-  
-    mA = malloc(sizeof(mpz_t));
-    nA = malloc(sizeof(mpz_t));
-    mB = malloc(sizeof(mpz_t));
-    nB = malloc(sizeof(mpz_t));
-
-    mpz_init(mA);
-    mpz_init(nA);
-    mpz_init(mB);
-    mpz_init(nB);
-    
-   
-    printf("\n\n----------------Randomly Generating Secret Keys\n");
-    rand_subgroup(mA,nA,lA_str,eA);
-    rand_subgroup(mB,nB,lB_str,eB);
-    
-    lA = atoi(lA_str);
-    lB = atoi(lB_str);
-    
- /*   mpz_set_str(mA, "271425151894496518335640197140609476548126586236901748237599426914328671462844",10);
-    mpz_set_str(nA, "1",10);
-    mpz_set_str(mB, "26584554918026606631483585618702416949640601079499951422104773571483060713101",10);
-    mpz_set_str(nB, "1",10);
-*/
-    
-/*    mpz_set_str(mA, "954602031042385891218690703282074252",10);
-    mpz_set_str(nA, "1",10);
-    mpz_set_str(mB, "49475252320432678227197535302391255",10);
-    mpz_set_str(nB, "1",10);
-  */  
- /*   mpz_set_str(mA, "271425151894496518335640197140609476548126586236901748237599426914328671462844",10);
-    mpz_set_str(nA, "1",10);
-    mpz_set_str(mB, "26584554918026606631483585618702416949640601079499951422104773571483060713101",10);
-    mpz_set_str(nB, "1",10);
- */   
-    MC EsA, EsB;
-    MP * points1;
-    MP * points2;
-    MP phiPB, phiQB, phiPA, phiQA, QPB, PQB, QPA, PQA ;
-    
-    
-    init_MP(&phiPB);
-    init_MP(&phiQB);
-    init_MP(&phiPA);
-    init_MP(&phiQA);
-    
-    init_MC(&EsA);
-    init_MC(&EsB);
-    
-    init_MP(&QPB);
-    init_MP(&PQB);
-    init_MP(&QPA);
-    init_MP(&PQA);
-    
-    t = malloc(sizeof(mt_info));
-    Q_INIT(t->qp2, (PA->x).parent);
-    Q_INIT(t->qp3, (PA->x).parent);
-    
-    subtract(&QPB, *QB, *PB);
-    subtract(&PQB, *PB, *QB);
-    subtract(&QPA, *QA, *PA);
-    subtract(&PQA, *PA, *QA);
-    
-    int eA_num = atoi(eA);
-    int eB_num = atoi(eB);
-
-    printf("----------------Generating Alice's Public Data\n");
-    gettimeofday(&tv1,NULL);
-    keygen_c_dfc1(&phiPB, &phiQB, *mA, *nA, lA, strA, lenA, *PA, *QA, *PB, *QB, QPA, PQA, eA_num);
-    gettimeofday(&tv2,NULL);
-    printf("----------------Generating Bob's Public Data\n");
-    gettimeofday(&tv3,NULL);
-    keygen_c_dfc1(&phiPA, &phiQA, *mB, *nB, lB, strB, lenB, *PB, *QB, *PA, *QA, QPB, PQB, eB_num);
-    gettimeofday(&tv4,NULL);
-    printf("----------------Computing Shared Key on Alice's Side\n");
-    gettimeofday(&tv5,NULL);
-    keygen_c_dfc2(&EsA, *mA, *nA, lA, strA, lenA, phiPA, phiQA, eA_num);
-    gettimeofday(&tv6,NULL);
-    printf("----------------Computing Shared Key on Bob's Side\n");
-    gettimeofday(&tv7,NULL);
-    keygen_c_dfc2(&EsB, *mB, *nB, lB, strB, lenB, phiPB, phiQB, eB_num);
-    gettimeofday(&tv8,NULL);
-    
-    GF EsA_j, EsB_j;
-    GF_params *parent;
-    parent = malloc(sizeof(GF_params));
-    setup_GF(parent,""); 
-    init_GF( &EsA_j, parent );
-    init_GF( &EsB_j, parent );
-    
-    j_invariant(&EsA_j, &EsA);
-    j_invariant(&EsB_j, &EsB);
-    printf("\n\n");
-    
-    if ( equals(&EsA_j, &EsB_j)!=1 ){
-        gmp_printf("ERROR: the shared keys don't match! Here's the secret keys:\n\tmA = %Zd\n\tnA = %Zd\n\tmB = %Zd\n\tnB = %Zd\n",*mA,*nA,*mB,*nB);
-        
-        printf("*************EsA*************\n");
-        print_Curve(&EsA);  
-        print_GF(EsA_j,"EsA J-Invariant");
-        printf("\n*************EsB*************\n");
-        print_Curve(&EsB); 
-        print_GF(EsB_j,"EsB J-Invariant");
-    }else{
-        
-        printf("*************Shared Key(s)*************\n\n");
-        printf("*************EsA*************\n");
-        print_Curve(&EsA);  
-        print_GF(EsA_j,"EsA J-Invariant");
-        printf("\n*************EsB*************\n");
-        print_Curve(&EsB); 
-        print_GF(EsB_j,"EsB J-Invariant");
-        printf("\n*************Secret Keys*************\n");
-        gmp_printf(" mA: %Zd\n nA: %Zd\n mB: %Zd\n nB: %Zd\n",*mA,*nA,*mB,*nB);
-        
-        printf("\n*************J-Invariants Match*************\n\n");
-        good = 1;
-    }
-    
-    free(mA);free(mB);free(nA);free(nB);free(parent);
-   
-    timersub(&tv2, &tv1, &diff1);
-    timersub(&tv4, &tv3, &diff2);
-    timersub(&tv6, &tv5, &diff3);
-    timersub(&tv8, &tv7, &diff4);
-    
-    timeradd(&diff1, &diff2, &total);
-    timeradd(&diff3, &total, &total);
-    timeradd(&diff4, &total, &total);
-    
-    printf("\n\nMontgomery Ladders Total: %d\n\n",  count1);
-    
-    printf ("Keygen 1 Real Time (sec) :%f \n", (double) diff1.tv_usec/1000000 + diff1.tv_sec);
-    printf ("Keygen 2 Real Time (sec) :%f \n", (double) diff2.tv_usec/1000000 + diff2.tv_sec);
-    printf ("Keygen 3 Real Time (sec) :%f \n", (double) diff3.tv_usec/1000000 + diff3.tv_sec);
-    printf ("Keygen 4 Real Time (sec) :%f \n", (double) diff4.tv_usec/1000000 + diff3.tv_sec);
-    printf ("Total Time (sec) :%f \n", (double) total.tv_usec/1000000.0 + total.tv_sec);
-    
-    *time = (double) total.tv_usec/1000000.0 + total.tv_sec;
-    return good;
-}
-
 
 double run_ZKP(double *time, char * eA_str, char * eB_str, char * lA_str, char * lB_str, int *strA, int lenA, int *strB, int lenB, 
                     MP *PA, MP *QA, MP *PB, MP *QB, int rounds, MP **R_array, MP **phiR_array, MP **psiS_array, MC **E_R_array, MC **E_RS_array, MC **E_SR_array){
@@ -2301,31 +1974,45 @@ double run_ZKP(double *time, char * eA_str, char * eB_str, char * lA_str, char *
   int lA = atoi(lA_str);
   int lB = atoi(lB_str);
 
-  // set up curves
-  MC *E, *E_S, *E_R, *E_SR, *E_RS;
-  E = malloc(sizeof(MC));
-  E_S = malloc(sizeof(MC));
-  E_R = malloc(sizeof(MC));
-  E_SR = malloc(sizeof(MC));
-  E_RS = malloc(sizeof(MC));
-  init_MC(E);
-  init_MC(E_S);
-  init_MC(E_R);
-  init_MC(E_SR);
-  init_MC(E_RS);
 
+  // E
+  MC *E;
+  E = malloc(sizeof(MC));
+  init_MC(E);
   copy_MC(E, PA->curve);
-  copy_MC(E_S, PA->curve);
-  copy_MC(E_R, PA->curve);
 
   printf("******************** E ********************\n");
   print_Curve(E);
 
 
-  // set up points
+  
+
+
+  printf("---------------------Computing Peggy's Secret S\n");
+  
   MP *S;
   S = malloc(sizeof(MP));
   init_MP(S);
+
+  mpz_t *mA, *nA;
+  mA = malloc(sizeof(mpz_t));
+  nA = malloc(sizeof(mpz_t));
+  mpz_init(*mA);
+  mpz_init(*nA);
+
+  rand_subgroup(mA,nA,lA_str,eA_str);
+
+  shamir(&S->x, &S->y, &S->z, E->A, E->B, PA->x, PA->y, PA->z, QA->x, QA->y, QA->z, *mA, *nA);
+
+  copy_MC(&S->curve, *E);
+
+
+  printf("------------------Computing phi: E -> E/<S>,  phi(P_B), phi(Q_B)\n");
+
+  MC *E_S;
+  E_S = malloc(sizeof(MC));
+  init_MC(E_S);
+  copy_MC(E_S, PA->curve);
 
   MP *phiPB, *phiQB;
   phiPB = malloc(sizeof(MP));
@@ -2333,79 +2020,21 @@ double run_ZKP(double *time, char * eA_str, char * eB_str, char * lA_str, char *
   init_MP(phiPB);
   init_MP(phiQB);
 
+  copy_GF(&phiPB->x, PB->x);
+  copy_GF(&phiPB->y, PB->y);
+  copy_GF(&phiPB->z, PB->z);
+  copy_GF(&phiQB->x, QB->x);
+  copy_GF(&phiQB->y, QB->y);
+  copy_GF(&phiQB->z, QB->z);
 
-  printf("---------------------Computing Peggy's Secret S\n");
-  mpz_t *mA, *nA;
-  mA = malloc(sizeof(mpz_t));
-  nA = malloc(sizeof(mpz_t));
-  mpz_init(mA);
-  mpz_init(nA);
+  push_through_iso(&E_S->A, &E_S->B, &E_S->A24, S->x, S->z, lA, strA, lenA-1, &phiPB->x, &phiPB->y, &phiPB->z, &phiQB->x, &phiQB->y, &phiQB->z, eA);
 
-  rand_subgroup(mA,nA,lA_str,eA_str);
-
-  GF *Sx, *Sy, *Sz;
-  Sx = malloc(sizeof(GF));
-  Sy = malloc(sizeof(GF));
-  Sz = malloc(sizeof(GF));
-  init_GF(Sx, PA->x.parent);
-  init_GF(Sy, PA->x.parent);
-  init_GF(Sz, PA->x.parent);
-
-  shamir(Sx, Sy, Sz, E->A, E->B, PA->x, PA->y, PA->z, QA->x, QA->y, QA->z, mA, nA);
-
-  copy_GF(&S->x, *Sx);
-  copy_GF(&S->y, *Sy);
-  copy_GF(&S->z, *Sz);
-  copy_MC(&S->curve, *E);
-
-
-  printf("------------------Computing E/<S>\n");
-  GF *PBx, *PBy, *PBz, *QBx, *QBy, *QBz;
-  PBx = malloc(sizeof(GF));
-  PBy = malloc(sizeof(GF));
-  PBz = malloc(sizeof(GF));
-  QBx = malloc(sizeof(GF));
-  QBy = malloc(sizeof(GF));
-  QBz = malloc(sizeof(GF));
-  init_GF(PBx, PA->x.parent);
-  init_GF(PBy, PA->x.parent);
-  init_GF(PBz, PA->x.parent);
-  init_GF(QBx, PA->x.parent);
-  init_GF(QBy, PA->x.parent);
-  init_GF(QBz, PA->x.parent);
-  copy_GF(PBx, PB->x);
-  copy_GF(PBy, PB->y);
-  copy_GF(PBz, PB->z);
-  copy_GF(QBx, QB->x);
-  copy_GF(QBy, QB->y);
-  copy_GF(QBz, QB->z);
-
-  GF *A_S, *B_S, *A24_S;
-  A_S = malloc(sizeof(GF));
-  B_S = malloc(sizeof(GF));
-  A24_S = malloc(sizeof(GF));
-  init_GF(A_S, PA->x.parent);
-  init_GF(B_S, PA->x.parent);
-  init_GF(A24_S, PA->x.parent);
-  copy_GF(A_S, E_S->A);
-  copy_GF(B_S, E_S->B);
-  copy_GF(A24_S, E_S->A24);
-
-  push_through_iso(&E_S->A, &E_S->B, &E_S->A24, *Sx, *Sz, lA, strA, lenA-1, PBx, PBy, PBz, QBx, QBy, QBz, eA);
-
-  copy_GF(&phiPB->x, *PBx);
-  copy_GF(&phiPB->y, *PBy);
-  copy_GF(&phiPB->z, *PBz);
-  copy_GF(&phiQB->x, *QBx);
-  copy_GF(&phiQB->y, *QBy);
-  copy_GF(&phiQB->z, *QBz);
-
+  /* not necessary
   copy_MC(&phiPB->curve, *E_S);
   copy_MC(&phiQB->curve, *E_S);
+  */
 
   print_Curve(E_S);
-
-
 
 
   /////////////////////////////////////////////////////////////////////////////////
@@ -2416,49 +2045,27 @@ double run_ZKP(double *time, char * eA_str, char * eB_str, char * lA_str, char *
 
     printf("----------Choosing random R and computing phi(R)\n");
     
-    R_array[r] = malloc(sizeof(MP));
-    init_MP(R_array[r]);
-    
     mpz_t *mB, *nB;
     mB = malloc(sizeof(mpz_t));
     nB = malloc(sizeof(mpz_t));
-    mpz_init(mB);
-    mpz_init(nB);
+    mpz_init(*mB);
+    mpz_init(*nB);
 
     rand_subgroup(mB,nB,lB_str,eB_str);
 
-    GF *Rx, *Ry, *Rz;
-    Rx = malloc(sizeof(GF));
-    Ry = malloc(sizeof(GF));
-    Rz = malloc(sizeof(GF));
-    init_GF(Rx, PA->x.parent);
-    init_GF(Ry, PA->x.parent);
-    init_GF(Rz, PA->x.parent);
+    R_array[r] = malloc(sizeof(MP));
+    init_MP(R_array[r]);
 
-    shamir(Rx, Ry, Rz, E->A, E->B, PB->x, PB->y, PB->z, QB->x, QB->y, QB->z, mB, nB);
+    shamir(&R_array[r]->x, &R_array[r]->y, &R_array[r]->z, E->A, E->B, PB->x, PB->y, PB->z, QB->x, QB->y, QB->z, *mB, *nB);
 
-    copy_GF(&R_array[r]->x, *Rx);
-    copy_GF(&R_array[r]->y, *Ry);
-    copy_GF(&R_array[r]->z, *Rz);
     copy_MC(&R_array[r]->curve, *E);
 
     // Compute phi(R) by mB*phi(PB)+nB*phi(QB) instead of pushing through isogeny
     phiR_array[r] = malloc(sizeof(MP));
     init_MP(phiR_array[r]);
 
-    GF *phiRx, *phiRy, *phiRz;
-    phiRx = malloc(sizeof(GF));
-    phiRy = malloc(sizeof(GF));
-    phiRz = malloc(sizeof(GF));
-    init_GF(phiRx, PA->x.parent);
-    init_GF(phiRy, PA->x.parent);
-    init_GF(phiRz, PA->x.parent);
-
-    shamir(phiRx, phiRy, phiRz, E_S->A, E_S->B, phiPB->x, phiPB->y, phiPB->z, phiQB->x, phiQB->y, phiQB->z, mB, nB);
+    shamir(&phiR_array[r]->x, &phiR_array[r]->y, &phiR_array[r]->z, E_S->A, E_S->B, phiPB->x, phiPB->y, phiPB->z, phiQB->x, phiQB->y, phiQB->z, *mB, *nB);
     
-    copy_GF(&phiR_array[r]->x, *phiRx);
-    copy_GF(&phiR_array[r]->y, *phiRy);
-    copy_GF(&phiR_array[r]->z, *phiRz);
     copy_MC(&phiR_array[r]->curve, *E_S);
 
 
@@ -2469,25 +2076,12 @@ double run_ZKP(double *time, char * eA_str, char * eB_str, char * lA_str, char *
     init_MC(E_R_array[r]);
     copy_MC(E_R_array[r], *E);
 
-    GF *Sx_temp, *Sy_temp, *Sz_temp;
-    Sx_temp = malloc(sizeof(GF));
-    Sy_temp = malloc(sizeof(GF));
-    Sz_temp = malloc(sizeof(GF));
-    init_GF(Sx_temp, PA->x.parent);
-    init_GF(Sy_temp, PA->x.parent);
-    init_GF(Sz_temp, PA->x.parent);
-    copy_GF(Sx_temp, *Sx);
-    copy_GF(Sy_temp, *Sy);
-    copy_GF(Sz_temp, *Sz);
-    
-    push_through_iso(&E_R_array[r]->A, &E_R_array[r]->B, &E_R_array[r]->A24, *Rx, *Rz, lB, strB, lenB-1, Sx_temp, Sy_temp, Sz_temp, NULL, NULL, NULL, eB);
-
     psiS_array[r] = malloc(sizeof(MP));
     init_MP(psiS_array[r]);
+    copy_MP(psiS_array[r], *S);
+    
+    push_through_iso(&E_R_array[r]->A, &E_R_array[r]->B, &E_R_array[r]->A24, R_array[r]->x, R_array[r]->z, lB, strB, lenB-1, &psiS_array[r]->x, &psiS_array[r]->y, &psiS_array[r]->z, NULL, NULL, NULL, eB);
 
-    copy_GF(&psiS_array[r]->x, *Sx_temp);
-    copy_GF(&psiS_array[r]->y, *Sy_temp);
-    copy_GF(&psiS_array[r]->z, *Sz_temp);
     copy_MC(&psiS_array[r]->curve, *E_R_array[r]);
 
 
@@ -2501,6 +2095,10 @@ double run_ZKP(double *time, char * eA_str, char * eB_str, char * lA_str, char *
     push_through_iso(&E_RS_array[r]->A, &E_RS_array[r]->B, &E_RS_array[r]->A24, psiS_array[r]->x, psiS_array[r]->z, lA, strA, lenA-1, NULL, NULL, NULL, NULL, NULL, NULL, eA);
 
 
+    
+    free(mB); free(nB);
+
+
 
     //print_Curve(E_RS_array[r]);
 
@@ -2512,251 +2110,14 @@ double run_ZKP(double *time, char * eA_str, char * eB_str, char * lA_str, char *
 
     push_through_iso(&E_SR_array[r]->A, &E_SR_array[r]->B, &E_SR_array[r]->A24, phiR_array[r]->x, phiR_array[r]->z, lB, strB, lenB-1, NULL, NULL, NULL, NULL, NULL, NULL, eB);
 
+
+
   }
+
+  free(mA); free(nA);
+  free(phiPB); free(phiQB);
 
   return 0;
-
-
-
-
-
-/*
-  // use one of PA, QA for S and one of PB, QB for R until we can generate random points with sage.
-  MP *S, *R, *psiS, *phiR;
-  S = malloc(sizeof(MP));
-  R = malloc(sizeof(MP));
-  psiS = malloc(sizeof(MP));
-  phiR = malloc(sizeof(MP));
-  init_MP(S);
-  init_MP(R);
-  init_MP(psiS);
-  init_MP(phiR);
-
-  int s_pq = rand()%2; // random bits
-  int r_pq = rand()%2;
-
-  if (s_pq == 0) {
-    copy_MP(S, *PA);
-  } else {
-    copy_MP(S, *QA);
-  }
-  if (r_pq == 0) {
-    copy_MP(R, *PB);
-  } else {
-    copy_MP(R, *QB);
-  }
-  //copy_MP(psiS, *S);
-  //copy_MP(phiR, *R);
-
-
-  GF *Sx, *Sy, *Sz, *Rx, *Ry, *Rz;
-
-  Sx = malloc(sizeof(GF));
-  init_GF(Sx, (*PA).x.parent);
-  copy_GF(Sx, (*S).x);
-  Sy = malloc(sizeof(GF));
-  init_GF(Sy, (*PA).x.parent);
-  copy_GF(Sy, (*S).y);
-  Sz = malloc(sizeof(GF));
-  init_GF(Sz, (*PA).x.parent);
-  copy_GF(Sz, (*S).z);
-  Rx = malloc(sizeof(GF));
-  init_GF(Rx, (*PA).x.parent);
-  copy_GF(Rx, (*R).x);
-  Ry = malloc(sizeof(GF));
-  init_GF(Ry, (*PA).x.parent);
-  copy_GF(Ry, (*R).y);
-  Rz = malloc(sizeof(GF));
-  init_GF(Rz, (*PA).x.parent);
-  copy_GF(Rz, (*R).z);
-
-
-  printf("----------------Computing Peggy's Diagram\n");
-
-  // set up curves
-  MC *E_S, *E_R, *E_SR, *E_RS;
-  E_S = malloc(sizeof(MC));
-  E_R = malloc(sizeof(MC));
-  E_SR = malloc(sizeof(MC));
-  E_RS = malloc(sizeof(MC));
-  init_MC(E_S);
-  init_MC(E_R);
-  init_MC(E_SR);
-  init_MC(E_RS);
-
-  GF *A, *B, *A24, *Acopy, *Bcopy, *A24copy;
-  A = malloc(sizeof(GF));
-  B = malloc(sizeof(GF));
-  A24 = malloc(sizeof(GF));
-  Acopy = malloc(sizeof(GF));
-  Bcopy = malloc(sizeof(GF));
-  A24copy = malloc(sizeof(GF));
-  init_GF(A, (*PA).x.parent);
-  init_GF(B, (*PA).x.parent);
-  init_GF(A24, (*PA).x.parent);
-  init_GF(Acopy, (*PA).x.parent);
-  init_GF(Bcopy, (*PA).x.parent);
-  init_GF(A24copy, (*PA).x.parent);
-  copy_GF(A, (*PA).curve.A);
-  copy_GF(B, (*PA).curve.B);
-  copy_GF(A24, (*PA).curve.A24);
-  copy_GF(Acopy, (*PA).curve.A);
-  copy_GF(Bcopy, (*PA).curve.B);
-  copy_GF(A24copy, (*PA).curve.A24);
-
-  print_MP(S, "S");
-  print_MP(R, "R");
-
-
-
-
-
-  printf("**************** E *****************\n");
-  print_Curve(&(*PA).curve);
-  
-
-
-  // compute phi: E -> E/<S> and phi(R)
-  //printf("**************** E/<S> *****************\n");
-  set_Curve(E_S, *A, *B, *A24);
-  //printf("Pre computation\n");
-  //print_Curve(E_S);
-  push_through_iso(&(*E_S).A, &(*E_S).B, &(*E_S).A24, *Sx, *Sz, lA, strA, lenA-1, Rx, Ry, Rz, NULL,NULL,NULL, eA_num);
-  //printf("Post computation\n");
-  //print_Curve(E_S);
-
-
-  copy_GF(&phiR->x, *Rx);
-  copy_GF(&phiR->y, *Ry);
-  copy_GF(&phiR->z, *Rz);
-  copy_MC(&phiR->curve, *E_S);
-  print_MP(phiR, "phi(R)");
-
-
-  // compute phi':E/<S> -> E/<S,R> 
-  //printf("*************** E/<S,R> ****************\n");
-  
-  copy_MC(E_SR, *E_S);
-
-  //printf("Pre computation\n");
-  //print_Curve(E_SR);
-
-  push_through_iso(&(*E_SR).A, &(*E_SR).B, &(*E_SR).A24, *Rx, *Rz, lB, strB, lenB-1, NULL, NULL, NULL, NULL, NULL, NULL,  eB_num);
-  
-  //printf("Post computation\n");
-  //print_Curve(E_SR);
-
-/*
-  print_GF(*Rx, "Rx");
-  print_GF(*Ry, "Ry");
-  print_GF(*Rz, "Rz");
-*/ /*
-  copy_GF(Rx, (*R).x);
-  copy_GF(Ry, (*R).y);
-  copy_GF(Rz, (*R).z);
-
-
-  // compute psi: E -> E/<R> and psi(S)
-  //printf("**************** E/<R> *****************\n");
-  
-  set_Curve(E_R, *Acopy, *Bcopy, *A24copy);
-  
-  //printf("Pre computation\n");
-  //print_Curve(E_R);
-  
-  push_through_iso(&(*E_R).A, &(*E_R).B, &(*E_R).A24, *Rx, *Rz, lB, strB, lenB-1, Sx, Sy, Sz, NULL, NULL, NULL, eB_num);
-
-  //printf("Post computation\n");  
-  //print_Curve(E_R);
-
-  copy_GF(&psiS->x, *Sx);
-  copy_GF(&psiS->y, *Sy);
-  copy_GF(&psiS->z, *Sz);
-  copy_MC(&psiS->curve, *E_R);
-  print_MP(psiS, "psi(S)");
-
-
-  // compute psi':E/<R> -> E/<R,S> 
-  copy_MC(E_RS, *E_R);
-  push_through_iso(&(*E_RS).A, &(*E_RS).B, &(*E_RS).A24, *Sx, *Sz, lA, strA, lenA-1, NULL, NULL, NULL, NULL, NULL, NULL, eA_num);
-  
-  //printf("*************** E/<R,S> ****************\n");
-  //print_Curve(E_RS);
-
-  print_MP(S, "S");
-  print_MP(R, "R");
-
-  print_Curve(E_R);
-  print_Curve(E_S);
-  print_Curve(E_RS);
-  print_Curve(E_SR);
-
-  printf("done printing\n");
-
-  // commitments
-  com1[round] = malloc(sizeof(MC));
-  com2[round] = malloc(sizeof(MC));
-  init_MC(com1[round]);
-  init_MC(com2[round]);
-  copy_MC(com1[round], *E_R);
-  copy_MC(com2[round], *E_RS);
-
-  printf("committed\n");
-
-  // challenges (randomly choose the first challenge bit)
-  int ch = rand()%2;
-  chal[round] = ch;
-
-  printf("challenged\n");
-
-  // responses
-  resp1[2*round] = malloc(sizeof(MP));
-  resp2[2*round] = malloc(sizeof(MP));
-  resp1[2*round+1] = malloc(sizeof(MP));
-  resp2[2*round+1] = malloc(sizeof(MP));
-  init_MP(resp1[2*round]);
-  init_MP(resp1[2*round+1]);
-  init_MP(resp2[2*round]);
-  init_MP(resp2[2*round+1]);
-  if(ch == 0) {
-    copy_MP(resp1[2*round], *R);
-    copy_MP(resp2[2*round], *phiR);
-
-    copy_MP(resp2[2*round+1], *psiS);
-  } else {
-    copy_MP(resp2[2*round], *psiS);
-
-    copy_MP(resp1[2*round+1], *R);
-    copy_MP(resp2[2*round+1], *phiR);
-  }
-
-  printf("responded\n");
-
-
-/*
-  // compute j-invariants to check that E/<S,R> and E/<R,S> are isomorphic
-  GF ESR_j, ERS_j;
-  GF_params *parent;
-  parent = malloc(sizeof(GF_params));
-  setup_GF(parent,""); 
-  init_GF( &ESR_j, parent );
-  init_GF( &ERS_j, parent );
-
-  j_invariant(&ESR_j, E_SR);
-  j_invariant(&ERS_j, E_RS);
-
-  print_GF(ESR_j, "E/<S,R> J-Invariant");
-  print_GF(ERS_j, "E/<R,S> J-Invariant");
-
-  free(parent);
-*/
-/*
-  free(S);free(R);free(psiS);free(phiR);
-  free(Sx);free(Sy);free(Sz);free(Rx);free(Ry);free(Rz);
-  free(E_S);free(E_R);free(E_SR);free(E_RS);
-  free(A);free(B);free(A24);
-  free(Acopy);free(Bcopy);free(A24copy);
-*/  
 }
 
 
