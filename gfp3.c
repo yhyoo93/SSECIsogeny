@@ -1964,162 +1964,6 @@ void rand_subgroup(mpz_t *m, mpz_t *n, char * l, char * e){
     
 }
 
-double run_ZKP(double *time, char * eA_str, char * eB_str, char * lA_str, char * lB_str, int *strA, int lenA, int *strB, int lenB, 
-                    MP *PA, MP *QA, MP *PB, MP *QB, int rounds, MP **R_array, MP **phiR_array, MP **psiS_array, MC **E_R_array, MC **E_RS_array, MC **E_SR_array){
-  int good=0;
-
-  int eA = atoi(eA_str);
-  int eB = atoi(eB_str);
-
-  int lA = atoi(lA_str);
-  int lB = atoi(lB_str);
-
-
-  // E
-  MC *E;
-  E = malloc(sizeof(MC));
-  init_MC(E);
-  copy_MC(E, PA->curve);
-
-  printf("******************** E ********************\n");
-  print_Curve(E);
-
-
-  
-
-
-  printf("---------------------Computing Peggy's Secret S\n");
-  
-  MP *S;
-  S = malloc(sizeof(MP));
-  init_MP(S);
-
-  mpz_t *mA, *nA;
-  mA = malloc(sizeof(mpz_t));
-  nA = malloc(sizeof(mpz_t));
-  mpz_init(*mA);
-  mpz_init(*nA);
-
-  rand_subgroup(mA,nA,lA_str,eA_str);
-
-  shamir(&S->x, &S->y, &S->z, E->A, E->B, PA->x, PA->y, PA->z, QA->x, QA->y, QA->z, *mA, *nA);
-
-  copy_MC(&S->curve, *E);
-
-
-  printf("------------------Computing phi: E -> E/<S>,  phi(P_B), phi(Q_B)\n");
-
-  MC *E_S;
-  E_S = malloc(sizeof(MC));
-  init_MC(E_S);
-  copy_MC(E_S, PA->curve);
-
-  MP *phiPB, *phiQB;
-  phiPB = malloc(sizeof(MP));
-  phiQB = malloc(sizeof(MP));
-  init_MP(phiPB);
-  init_MP(phiQB);
-
-  copy_GF(&phiPB->x, PB->x);
-  copy_GF(&phiPB->y, PB->y);
-  copy_GF(&phiPB->z, PB->z);
-  copy_GF(&phiQB->x, QB->x);
-  copy_GF(&phiQB->y, QB->y);
-  copy_GF(&phiQB->z, QB->z);
-
-  push_through_iso(&E_S->A, &E_S->B, &E_S->A24, S->x, S->z, lA, strA, lenA-1, &phiPB->x, &phiPB->y, &phiPB->z, &phiQB->x, &phiQB->y, &phiQB->z, eA);
-
-  /* not necessary
-  copy_MC(&phiPB->curve, *E_S);
-  copy_MC(&phiQB->curve, *E_S);
-  */
-
-  print_Curve(E_S);
-
-
-  /////////////////////////////////////////////////////////////////////////////////
-  // run the ZKP rounds
-
-  for(int r=0; r < rounds; r++) {
-    printf("round %d\n",r);
-
-    printf("----------Choosing random R and computing phi(R)\n");
-    
-    mpz_t *mB, *nB;
-    mB = malloc(sizeof(mpz_t));
-    nB = malloc(sizeof(mpz_t));
-    mpz_init(*mB);
-    mpz_init(*nB);
-
-    rand_subgroup(mB,nB,lB_str,eB_str);
-
-    R_array[r] = malloc(sizeof(MP));
-    init_MP(R_array[r]);
-
-    shamir(&R_array[r]->x, &R_array[r]->y, &R_array[r]->z, E->A, E->B, PB->x, PB->y, PB->z, QB->x, QB->y, QB->z, *mB, *nB);
-
-    copy_MC(&R_array[r]->curve, *E);
-
-    // Compute phi(R) by mB*phi(PB)+nB*phi(QB) instead of pushing through isogeny
-    phiR_array[r] = malloc(sizeof(MP));
-    init_MP(phiR_array[r]);
-
-    shamir(&phiR_array[r]->x, &phiR_array[r]->y, &phiR_array[r]->z, E_S->A, E_S->B, phiPB->x, phiPB->y, phiPB->z, phiQB->x, phiQB->y, phiQB->z, *mB, *nB);
-    
-    copy_MC(&phiR_array[r]->curve, *E_S);
-
-
-    /////////////////////////////////////////////////////////
-    printf("----------Computing E/<R> and psi(S)\n");
-
-    E_R_array[r] = malloc(sizeof(MC));
-    init_MC(E_R_array[r]);
-    copy_MC(E_R_array[r], *E);
-
-    psiS_array[r] = malloc(sizeof(MP));
-    init_MP(psiS_array[r]);
-    copy_MP(psiS_array[r], *S);
-    
-    push_through_iso(&E_R_array[r]->A, &E_R_array[r]->B, &E_R_array[r]->A24, R_array[r]->x, R_array[r]->z, lB, strB, lenB-1, &psiS_array[r]->x, &psiS_array[r]->y, &psiS_array[r]->z, NULL, NULL, NULL, eB);
-
-    copy_MC(&psiS_array[r]->curve, *E_R_array[r]);
-
-
-    //////////////////////////////////////////////////////
-    printf("------------Computing E/<R,S>\n");
-
-    E_RS_array[r] = malloc(sizeof(MC));
-    init_MC(E_RS_array[r]);
-    copy_MC(E_RS_array[r], *E_R_array[r]);
-
-    push_through_iso(&E_RS_array[r]->A, &E_RS_array[r]->B, &E_RS_array[r]->A24, psiS_array[r]->x, psiS_array[r]->z, lA, strA, lenA-1, NULL, NULL, NULL, NULL, NULL, NULL, eA);
-
-
-    
-    free(mB); free(nB);
-
-
-
-    //print_Curve(E_RS_array[r]);
-
-
-    // check with E/<S,R>
-    E_SR_array[r] = malloc(sizeof(MC));
-    init_MC(E_SR_array[r]);
-    copy_MC(E_SR_array[r], *E_S);
-
-    push_through_iso(&E_SR_array[r]->A, &E_SR_array[r]->B, &E_SR_array[r]->A24, phiR_array[r]->x, phiR_array[r]->z, lB, strB, lenB-1, NULL, NULL, NULL, NULL, NULL, NULL, eB);
-
-
-
-  }
-
-  free(mA); free(nA);
-  free(phiPB); free(phiQB);
-
-  return 0;
-}
-
 
 
 
@@ -2471,9 +2315,185 @@ void string_data(char** data, int rounds, MC **com1, MC **com2, int *chal, MP **
     //printf("\n\nall data:\n%s\n", *data);
 }
 
+
+
+typedef struct {
+  char *eA_str; char *eB_str; char *lA_str; char *lB_str; int *strA; int lenA; int *strB; int lenB; 
+  MC *E; MC *E_S; MP *S; MP *PB; MP *QB; MP *phiPB; MP *phiQB;
+  int rounds; MP **R_array; MP **phiR_array; MP **psiS_array; MC **E_R_array; MC **E_RS_array;
+} pthread_params;
+
+
+
+int run_ZKPs(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA, int lenA, int *strB, int lenB, 
+            MC *E, MC *E_S, MP *S, MP *PB, MP *QB, MP *phiPB, MP *phiQB,
+            int rounds, MP **R_array, MP **phiR_array, MP **psiS_array, MC **E_R_array, MC **E_RS_array) {
+  int eA = atoi(eA_str);
+  int eB = atoi(eB_str);
+  int lA = atoi(lA_str);
+  int lB = atoi(lB_str);
+
+  for (int r=0; r<rounds; r++) {
+    printf("round %d\n",r);
+
+    printf("----------Choosing random R and computing phi(R)\n");
+    
+    mpz_t *mB, *nB;
+    mB = malloc(sizeof(mpz_t));
+    nB = malloc(sizeof(mpz_t));
+    mpz_init(*mB);
+    mpz_init(*nB);
+
+    rand_subgroup(mB,nB,lB_str,eB_str);
+
+    R_array[r] = malloc(sizeof(MP));
+    init_MP(R_array[r]);
+
+    shamir(&R_array[r]->x, &R_array[r]->y, &R_array[r]->z, E->A, E->B, PB->x, PB->y, PB->z, QB->x, QB->y, QB->z, *mB, *nB);
+
+    copy_MC(&R_array[r]->curve, *E);
+
+    // Compute phi(R) by mB*phi(PB)+nB*phi(QB) instead of pushing through isogeny
+    phiR_array[r] = malloc(sizeof(MP));
+    init_MP(phiR_array[r]);
+
+    shamir(&phiR_array[r]->x, &phiR_array[r]->y, &phiR_array[r]->z, E_S->A, E_S->B, phiPB->x, phiPB->y, phiPB->z, phiQB->x, phiQB->y, phiQB->z, *mB, *nB);
+    
+    copy_MC(&phiR_array[r]->curve, *E_S);
+
+
+    /////////////////////////////////////////////////////////
+    printf("----------Computing E/<R> and psi(S)\n");
+
+    E_R_array[r] = malloc(sizeof(MC));
+    init_MC(E_R_array[r]);
+    copy_MC(E_R_array[r], *E);
+
+    psiS_array[r] = malloc(sizeof(MP));
+    init_MP(psiS_array[r]);
+    copy_MP(psiS_array[r], *S);
+    
+    push_through_iso(&E_R_array[r]->A, &E_R_array[r]->B, &E_R_array[r]->A24, R_array[r]->x, R_array[r]->z, lB, strB, lenB-1, &psiS_array[r]->x, &psiS_array[r]->y, &psiS_array[r]->z, NULL, NULL, NULL, eB);
+
+    copy_MC(&psiS_array[r]->curve, *E_R_array[r]);
+
+
+    //////////////////////////////////////////////////////
+    printf("------------Computing E/<R,S>\n");
+
+    E_RS_array[r] = malloc(sizeof(MC));
+    init_MC(E_RS_array[r]);
+    copy_MC(E_RS_array[r], *E_R_array[r]);
+
+    push_through_iso(&E_RS_array[r]->A, &E_RS_array[r]->B, &E_RS_array[r]->A24, psiS_array[r]->x, psiS_array[r]->z, lA, strA, lenA-1, NULL, NULL, NULL, NULL, NULL, NULL, eA);
+
+    free(mB); free(nB);
+  }
+}
+
+
+
+double iu_sign(double *time, char * eA_str, char * eB_str, char * lA_str, char * lB_str, int *strA, int lenA, int *strB, int lenB, 
+                MP *PA, MP *QA, MP *PB, MP *QB, int rounds, int num_threads, 
+                MP **R_array, MP **phiR_array, MP **psiS_array, MC **E_R_array, MC **E_RS_array, MC **E_SR_array){
+  int good=0;
+
+  int eA = atoi(eA_str);
+  int eB = atoi(eB_str);
+
+  int lA = atoi(lA_str);
+  int lB = atoi(lB_str);
+
+
+  // E
+  MC *E;
+  E = malloc(sizeof(MC));
+  init_MC(E);
+  copy_MC(E, PA->curve);
+
+  printf("******************** E ********************\n");
+  print_Curve(E);
+
+
+  printf("---------------------Computing Peggy's Secret S\n");
+  
+  MP *S;
+  S = malloc(sizeof(MP));
+  init_MP(S);
+
+  mpz_t *mA, *nA;
+  mA = malloc(sizeof(mpz_t));
+  nA = malloc(sizeof(mpz_t));
+  mpz_init(*mA);
+  mpz_init(*nA);
+
+  rand_subgroup(mA,nA,lA_str,eA_str);
+
+  shamir(&S->x, &S->y, &S->z, E->A, E->B, PA->x, PA->y, PA->z, QA->x, QA->y, QA->z, *mA, *nA);
+
+  copy_MC(&S->curve, *E);
+
+
+  printf("------------------Computing phi: E -> E/<S>,  phi(P_B), phi(Q_B)\n");
+
+  MC *E_S;
+  E_S = malloc(sizeof(MC));
+  init_MC(E_S);
+  copy_MC(E_S, PA->curve);
+
+  MP *phiPB, *phiQB;
+  phiPB = malloc(sizeof(MP));
+  phiQB = malloc(sizeof(MP));
+  init_MP(phiPB);
+  init_MP(phiQB);
+
+  copy_GF(&phiPB->x, PB->x);
+  copy_GF(&phiPB->y, PB->y);
+  copy_GF(&phiPB->z, PB->z);
+  copy_GF(&phiQB->x, QB->x);
+  copy_GF(&phiQB->y, QB->y);
+  copy_GF(&phiQB->z, QB->z);
+
+  push_through_iso(&E_S->A, &E_S->B, &E_S->A24, S->x, S->z, lA, strA, lenA-1, &phiPB->x, &phiPB->y, &phiPB->z, &phiQB->x, &phiQB->y, &phiQB->z, eA);
+
+  /* not necessary
+  copy_MC(&phiPB->curve, *E_S);
+  copy_MC(&phiQB->curve, *E_S);
+  */
+
+  print_Curve(E_S);
+
+
+  /////////////////////////////////////////////////////////////////////////////////
+  // run the ZKP rounds
+
+  run_ZKPs(eA_str, eB_str, lA_str, lB_str, strA, lenA, strB, lenB, E, E_S, S, PB, QB, phiPB, phiQB,
+            rounds, R_array, phiR_array, psiS_array, E_R_array, E_RS_array);
+
+/*
+    // check with E/<S,R>
+    E_SR_array[r] = malloc(sizeof(MC));
+    init_MC(E_SR_array[r]);
+    copy_MC(E_SR_array[r], *E_S);
+
+    push_through_iso(&E_SR_array[r]->A, &E_SR_array[r]->B, &E_SR_array[r]->A24, phiR_array[r]->x, phiR_array[r]->z, lB, strB, lenB-1, NULL, NULL, NULL, NULL, NULL, NULL, eB);
+/**/
+
+
+  free(mA); free(nA);
+  free(phiPB); free(phiQB);
+
+  return 0;
+}
+
+
+
+
+
 //1st argument specifies file with parameters, second # of times to run the key exchange. If second argument is null, only 1 iteration is performed
 int main(int argc, char *argv[]) {
-    int iterations;
+    int rounds=32; //also equal to the bit length of hash output (must be a multiple of 8)
+    int num_threads = 1;
     srand(time);
     
     if( argc < 2 ){
@@ -2483,12 +2503,19 @@ int main(int argc, char *argv[]) {
         printf("File where Public parameters are: '%s'\n", argv[1]);
     }
     
-    if( !argv[2] )
-        iterations = 1;
-    else{
-        iterations = atoi(argv[2]);
-        printf("Number of Iterations: %s\n", argv[2]);
-    }    
+    if(argv[2]) {
+        rounds = atoi(argv[2]);
+        if (rounds % 8 != 0) {
+            printf("ERROR: Number of rounds must be a multiple of 8.\n");
+            return 1;
+        }
+        printf("Number of rounds: %s\n", argv[2]);
+    }
+    if (argv[3]) {
+        num_threads = atoi(argv[3]);
+        printf("Number of threads: %d\n", num_threads);
+    }
+
     
     int MAX_LENGTH = 10000;
     int *strA, *strA_t, *strB, *strB_t; 
@@ -2529,8 +2556,6 @@ int main(int argc, char *argv[]) {
     
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    int rounds=32; //also equal to the bit length of hash output (must be a multiple of 8)
-
     MP *R_array[rounds];
     MP *phiR_array[rounds];
     MP *psiS_array[rounds];
@@ -2539,7 +2564,7 @@ int main(int argc, char *argv[]) {
     MC *E_RS_array[rounds];
     MC *E_SR_array[rounds];
     
-    run_ZKP(time, eA, eB, lA, lB, strA, lenA, strB, lenB, PA, QA, PB, QB, rounds, R_array, phiR_array, psiS_array, E_R_array, E_RS_array, E_SR_array);
+    iu_sign(time, eA, eB, lA, lB, strA, lenA, strB, lenB, PA, QA, PB, QB, rounds, num_threads, R_array, phiR_array, psiS_array, E_R_array, E_RS_array, E_SR_array);
 
     for (int r=0; r<rounds; r++) {
       printf("\n\nround %d \n", r+1);
@@ -2550,8 +2575,8 @@ int main(int argc, char *argv[]) {
       print_Curve(E_R_array[r]);
       printf("********* E/<R,S> *********\n");
       print_Curve(E_RS_array[r]);
-      printf("********* E/<S,R> *********\n");
-      print_Curve(E_SR_array[r]);
+      //printf("********* E/<S,R> *********\n");
+      //print_Curve(E_SR_array[r]);
       
     }
 
