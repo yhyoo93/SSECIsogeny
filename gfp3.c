@@ -2320,7 +2320,10 @@ void string_data(char** data, int rounds, MC **com1, MC **com2, int *chal, MP **
 
 
 ///////////////////////////// GLOBAL VARIABLES FOR THREADING ///////////////////////////////
-//pthread_mutex_t *mutex_rounds = NULL;
+int NUM_THREADS = 1;
+int NUM_ROUNDS = 32;
+int CUR_ROUND = 0;
+pthread_mutex_t MUTEX;
 
 
 
@@ -2328,24 +2331,26 @@ typedef struct thread_params {
   char *eA_str; char *eB_str; char *lA_str; char *lB_str; int *strA; int lenA; int *strB; int lenB; 
   MC *E; MC *E_S; 
   MP *S; MP *PB; MP *QB; MP *phiPB; MP *phiQB;
-  int rounds; 
-  pthread_mutex_t **mutex_rounds;
   MP **R_array; MP **phiR_array; MP **psiS_array; MC **E_R_array; MC **E_RS_array;
 } thread_params;
 
 
 
 void run_ZKPs(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA, int lenA, int *strB, int lenB, 
-              MC *E, MC *E_S, MP *S, MP *PB, MP *QB, MP *phiPB, MP *phiQB, int rounds, pthread_mutex_t **mutex_rounds, 
+              MC *E, MC *E_S, MP *S, MP *PB, MP *QB, MP *phiPB, MP *phiQB,
               MP **R_array, MP **phiR_array, MP **psiS_array, MC **E_R_array, MC **E_RS_array) {
   int eA = atoi(eA_str);
   int eB = atoi(eB_str);
   int lA = atoi(lA_str);
   int lB = atoi(lB_str);
 
-  for (int r=0; r<rounds; r++) {
-    // check if this thread should work on round r
-    if (pthread_mutex_trylock(mutex_rounds[r])) continue;
+  int r=0;
+  while (r < NUM_ROUNDS) {
+
+    pthread_mutex_lock(&MUTEX);
+    r = CUR_ROUND;
+    CUR_ROUND++;
+    pthread_mutex_unlock(&MUTEX);
 
     printf("round %d\n",r);
 
@@ -2374,6 +2379,10 @@ void run_ZKPs(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA,
     
     copy_MC(&phiR_array[r]->curve, *E_S);
 
+    print_MP(R_array[r], "************* R *************");
+    print_MP(phiR_array[r], "************* phi(R) *************");
+    
+
 
     /////////////////////////////////////////////////////////
     printf("----------Computing E/<R> and psi(S)\n");
@@ -2390,6 +2399,9 @@ void run_ZKPs(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA,
 
     copy_MC(&psiS_array[r]->curve, *E_R_array[r]);
 
+    print_Curve(E_R_array[r]);
+    print_MP(psiS_array[r], "************* psi(S) *************");
+
 
     //////////////////////////////////////////////////////
     printf("------------Computing E/<R,S>\n");
@@ -2402,23 +2414,22 @@ void run_ZKPs(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA,
 
     free(mB); free(nB);
 
-    pthread_mutex_unlock(mutex_rounds[r]);
   }
 }
 
 
 void *run_ZKP_thread(void *TP) {
+  printf("hello\n");
   thread_params *tp = (thread_params*) TP;
   run_ZKPs(tp->eA_str, tp->eB_str, tp->lA_str, tp->lB_str, tp->strA, tp->lenA, tp->strB, tp->lenB, 
             tp->E, tp->E_S, tp->S, tp->PB, tp->QB, tp->phiPB, tp->phiQB,
-            tp->rounds, tp->mutex_rounds, 
             tp->R_array, tp->phiR_array, tp->psiS_array, tp->E_R_array, tp->E_RS_array);
 }
 
 
 
 double iu_sign(double *time, char * eA_str, char * eB_str, char * lA_str, char * lB_str, int *strA, int lenA, int *strB, int lenB, 
-                MP *PA, MP *QA, MP *PB, MP *QB, int rounds, int num_threads, pthread_mutex_t **mutex_rounds,
+                MP *PA, MP *QA, MP *PB, MP *QB,
                 MP **R_array, MP **phiR_array, MP **psiS_array, MC **E_R_array, MC **E_RS_array, MC **E_SR_array){
   int good=0;
 
@@ -2458,7 +2469,7 @@ double iu_sign(double *time, char * eA_str, char * eB_str, char * lA_str, char *
   copy_MC(&S->curve, *E);
 
 
-  printf("------------------Computing phi: E -> E/<S>,  phi(P_B), phi(Q_B)\n");
+  printf("------------------Computing phi: E -> E/<S>,  phi(PB), phi(QB)\n");
 
   MC *E_S;
   E_S = malloc(sizeof(MC));
@@ -2486,22 +2497,35 @@ double iu_sign(double *time, char * eA_str, char * eB_str, char * lA_str, char *
   copy_MC(&phiQB->curve, *E_S);
   */
 
+  printf("\nE_S:\n");
   print_Curve(E_S);
 
 
+  printf("\nstart threading\n");
   /////////////////////////////////////////////////////////////////////////////////
   // run the ZKP rounds
-  pthread_t ZKP_threads[num_threads];
+  pthread_t ZKP_threads[NUM_THREADS];
+  CUR_ROUND = 0;
+  if (pthread_mutex_init(&MUTEX, NULL)) {
+    printf("ERROR: mutex init failed \n");
+    return 1;
+  }
 
   thread_params tp = {eA_str, eB_str, lA_str, lB_str, strA, lenA, strB, lenB, 
                       E, E_S, S, PB, QB, phiPB, phiQB,
-                      rounds, mutex_rounds,
                       R_array, phiR_array, psiS_array, E_R_array, E_RS_array};
 
-  for (int t=0; t<num_threads; t++) {
+  printf("numthreads: %d\nnumrounds: %d\ncurround: %d\n", NUM_THREADS, NUM_ROUNDS, CUR_ROUND);
+
+  for (int t=0; t<NUM_THREADS; t++) {
+    printf("thread %d\n", t);
     if (pthread_create(&ZKP_threads[t], NULL, run_ZKP_thread, &tp)) {
       printf("ERROR: Failed to create thread %d\n", t);
     }
+  }
+
+  for (int t=0; t<NUM_THREADS; t++) {
+    pthread_join(ZKP_threads[t], NULL);
   }
 
 
@@ -2532,8 +2556,8 @@ double iu_sign(double *time, char * eA_str, char * eB_str, char * lA_str, char *
 
 //1st argument specifies file with parameters, second # of times to run the key exchange. If second argument is null, only 1 iteration is performed
 int main(int argc, char *argv[]) {
-    int rounds=32; //also equal to the bit length of hash output (must be a multiple of 8)
-    int num_threads = 1;
+    NUM_ROUNDS = 32; //also equal to the bit length of hash output (must be a multiple of 8)
+    NUM_THREADS = 1;
     srand(time);
     
     if( argc < 2 ){
@@ -2544,17 +2568,17 @@ int main(int argc, char *argv[]) {
     }
     
     if(argc >= 3) {
-        rounds = atoi(argv[2]);
-        if (rounds % 8 != 0) {
+        NUM_ROUNDS = atoi(argv[2]);
+        if (NUM_ROUNDS % 8 != 0) {
             printf("ERROR: Number of rounds must be a multiple of 8.\n");
             return 1;
         }
     }
     if (argc >= 4) {
-        num_threads = atoi(argv[3]);
+        NUM_THREADS = atoi(argv[3]);
     }
-    printf("Number of rounds: %d\n", rounds);
-    printf("Number of threads: %d\n", num_threads);
+    printf("Number of rounds: %d\n", NUM_ROUNDS);
+    printf("Number of threads: %d\n", NUM_THREADS);
 
     
     int MAX_LENGTH = 10000;
@@ -2596,24 +2620,23 @@ int main(int argc, char *argv[]) {
     
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    pthread_mutex_t *mutex_rounds[rounds];
-    for (int r=0; r<rounds; r++) {
-        pthread_mutex_init(mutex_rounds[r], NULL);
-    }
 
-    MP *R_array[rounds];
-    MP *phiR_array[rounds];
-    MP *psiS_array[rounds];
+    MP *R_array[NUM_ROUNDS];
+    MP *phiR_array[NUM_ROUNDS];
+    MP *psiS_array[NUM_ROUNDS];
 
-    MC *E_R_array[rounds];
-    MC *E_RS_array[rounds];
-    MC *E_SR_array[rounds];
+    MC *E_R_array[NUM_ROUNDS];
+    MC *E_RS_array[NUM_ROUNDS];
+    MC *E_SR_array[NUM_ROUNDS];
+
+    printf("signing\n");
     
-    iu_sign(time, eA, eB, lA, lB, strA, lenA, strB, lenB, PA, QA, PB, QB, rounds, num_threads, mutex_rounds, R_array, phiR_array, psiS_array, E_R_array, E_RS_array, E_SR_array);
+    iu_sign(time, eA, eB, lA, lB, strA, lenA, strB, lenB, PA, QA, PB, QB, R_array, phiR_array, psiS_array, E_R_array, E_RS_array, E_SR_array);
 
 
-/*
-    for (int r=0; r<rounds; r++) {
+
+    // print everything
+    for (int r=0; r<NUM_ROUNDS; r++) {
       printf("\n\nround %d \n", r+1);
       print_MP(R_array[r], "R");
       print_MP(phiR_array[r], "phi(R)");
@@ -2626,7 +2649,7 @@ int main(int argc, char *argv[]) {
       //print_Curve(E_SR_array[r]);
       
     }
-*/
+/**/
 
 
 /*
