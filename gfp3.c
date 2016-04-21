@@ -2317,23 +2317,36 @@ void string_data(char** data, int rounds, MC **com1, MC **com2, int *chal, MP **
 
 
 
-typedef struct {
+
+
+///////////////////////////// GLOBAL VARIABLES FOR THREADING ///////////////////////////////
+//pthread_mutex_t *mutex_rounds = NULL;
+
+
+
+typedef struct thread_params {
   char *eA_str; char *eB_str; char *lA_str; char *lB_str; int *strA; int lenA; int *strB; int lenB; 
-  MC *E; MC *E_S; MP *S; MP *PB; MP *QB; MP *phiPB; MP *phiQB;
-  int rounds; MP **R_array; MP **phiR_array; MP **psiS_array; MC **E_R_array; MC **E_RS_array;
-} pthread_params;
+  MC *E; MC *E_S; 
+  MP *S; MP *PB; MP *QB; MP *phiPB; MP *phiQB;
+  int rounds; 
+  pthread_mutex_t **mutex_rounds;
+  MP **R_array; MP **phiR_array; MP **psiS_array; MC **E_R_array; MC **E_RS_array;
+} thread_params;
 
 
 
-int run_ZKPs(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA, int lenA, int *strB, int lenB, 
-            MC *E, MC *E_S, MP *S, MP *PB, MP *QB, MP *phiPB, MP *phiQB,
-            int rounds, MP **R_array, MP **phiR_array, MP **psiS_array, MC **E_R_array, MC **E_RS_array) {
+void run_ZKPs(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA, int lenA, int *strB, int lenB, 
+              MC *E, MC *E_S, MP *S, MP *PB, MP *QB, MP *phiPB, MP *phiQB, int rounds, pthread_mutex_t **mutex_rounds, 
+              MP **R_array, MP **phiR_array, MP **psiS_array, MC **E_R_array, MC **E_RS_array) {
   int eA = atoi(eA_str);
   int eB = atoi(eB_str);
   int lA = atoi(lA_str);
   int lB = atoi(lB_str);
 
   for (int r=0; r<rounds; r++) {
+    // check if this thread should work on round r
+    if (pthread_mutex_trylock(mutex_rounds[r])) continue;
+
     printf("round %d\n",r);
 
     printf("----------Choosing random R and computing phi(R)\n");
@@ -2388,13 +2401,24 @@ int run_ZKPs(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA, 
     push_through_iso(&E_RS_array[r]->A, &E_RS_array[r]->B, &E_RS_array[r]->A24, psiS_array[r]->x, psiS_array[r]->z, lA, strA, lenA-1, NULL, NULL, NULL, NULL, NULL, NULL, eA);
 
     free(mB); free(nB);
+
+    pthread_mutex_unlock(mutex_rounds[r]);
   }
+}
+
+
+void *run_ZKP_thread(void *TP) {
+  thread_params *tp = (thread_params*) TP;
+  run_ZKPs(tp->eA_str, tp->eB_str, tp->lA_str, tp->lB_str, tp->strA, tp->lenA, tp->strB, tp->lenB, 
+            tp->E, tp->E_S, tp->S, tp->PB, tp->QB, tp->phiPB, tp->phiQB,
+            tp->rounds, tp->mutex_rounds, 
+            tp->R_array, tp->phiR_array, tp->psiS_array, tp->E_R_array, tp->E_RS_array);
 }
 
 
 
 double iu_sign(double *time, char * eA_str, char * eB_str, char * lA_str, char * lB_str, int *strA, int lenA, int *strB, int lenB, 
-                MP *PA, MP *QA, MP *PB, MP *QB, int rounds, int num_threads, 
+                MP *PA, MP *QA, MP *PB, MP *QB, int rounds, int num_threads, pthread_mutex_t **mutex_rounds,
                 MP **R_array, MP **phiR_array, MP **psiS_array, MC **E_R_array, MC **E_RS_array, MC **E_SR_array){
   int good=0;
 
@@ -2456,7 +2480,8 @@ double iu_sign(double *time, char * eA_str, char * eB_str, char * lA_str, char *
 
   push_through_iso(&E_S->A, &E_S->B, &E_S->A24, S->x, S->z, lA, strA, lenA-1, &phiPB->x, &phiPB->y, &phiPB->z, &phiQB->x, &phiQB->y, &phiQB->z, eA);
 
-  /* not necessary
+  /* 
+  // not necessary
   copy_MC(&phiPB->curve, *E_S);
   copy_MC(&phiQB->curve, *E_S);
   */
@@ -2466,9 +2491,24 @@ double iu_sign(double *time, char * eA_str, char * eB_str, char * lA_str, char *
 
   /////////////////////////////////////////////////////////////////////////////////
   // run the ZKP rounds
+  pthread_t ZKP_threads[num_threads];
 
+  thread_params tp = {eA_str, eB_str, lA_str, lB_str, strA, lenA, strB, lenB, 
+                      E, E_S, S, PB, QB, phiPB, phiQB,
+                      rounds, mutex_rounds,
+                      R_array, phiR_array, psiS_array, E_R_array, E_RS_array};
+
+  for (int t=0; t<num_threads; t++) {
+    if (pthread_create(&ZKP_threads[t], NULL, run_ZKP_thread, &tp)) {
+      printf("ERROR: Failed to create thread %d\n", t);
+    }
+  }
+
+
+
+/*
   run_ZKPs(eA_str, eB_str, lA_str, lB_str, strA, lenA, strB, lenB, E, E_S, S, PB, QB, phiPB, phiQB,
-            rounds, R_array, phiR_array, psiS_array, E_R_array, E_RS_array);
+            rounds, mutex_rounds, R_array, phiR_array, psiS_array, E_R_array, E_RS_array);
 
 /*
     // check with E/<S,R>
@@ -2503,18 +2543,18 @@ int main(int argc, char *argv[]) {
         printf("File where Public parameters are: '%s'\n", argv[1]);
     }
     
-    if(argv[2]) {
+    if(argc >= 3) {
         rounds = atoi(argv[2]);
         if (rounds % 8 != 0) {
             printf("ERROR: Number of rounds must be a multiple of 8.\n");
             return 1;
         }
-        printf("Number of rounds: %s\n", argv[2]);
     }
-    if (argv[3]) {
+    if (argc >= 4) {
         num_threads = atoi(argv[3]);
-        printf("Number of threads: %d\n", num_threads);
     }
+    printf("Number of rounds: %d\n", rounds);
+    printf("Number of threads: %d\n", num_threads);
 
     
     int MAX_LENGTH = 10000;
@@ -2556,6 +2596,11 @@ int main(int argc, char *argv[]) {
     
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
+    pthread_mutex_t *mutex_rounds[rounds];
+    for (int r=0; r<rounds; r++) {
+        pthread_mutex_init(mutex_rounds[r], NULL);
+    }
+
     MP *R_array[rounds];
     MP *phiR_array[rounds];
     MP *psiS_array[rounds];
@@ -2564,8 +2609,10 @@ int main(int argc, char *argv[]) {
     MC *E_RS_array[rounds];
     MC *E_SR_array[rounds];
     
-    iu_sign(time, eA, eB, lA, lB, strA, lenA, strB, lenB, PA, QA, PB, QB, rounds, num_threads, R_array, phiR_array, psiS_array, E_R_array, E_RS_array, E_SR_array);
+    iu_sign(time, eA, eB, lA, lB, strA, lenA, strB, lenB, PA, QA, PB, QB, rounds, num_threads, mutex_rounds, R_array, phiR_array, psiS_array, E_R_array, E_RS_array, E_SR_array);
 
+
+/*
     for (int r=0; r<rounds; r++) {
       printf("\n\nround %d \n", r+1);
       print_MP(R_array[r], "R");
@@ -2579,7 +2626,7 @@ int main(int argc, char *argv[]) {
       //print_Curve(E_SR_array[r]);
       
     }
-
+*/
 
 
 /*
