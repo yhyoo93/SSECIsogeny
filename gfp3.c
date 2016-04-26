@@ -96,6 +96,15 @@ mt_info *t;
 pthread_t threads[2];
 
 
+///////////////////////////// GLOBAL VARIABLES FOR THREADING ///////////////////////////////
+int NUM_THREADS = 1;
+int NUM_ROUNDS = 32;
+int CUR_ROUND = 0;
+pthread_mutex_t R_LOCK, GF_LOCK;
+char *prime;
+
+
+
 
 /******** IMPLEMENTATION OF GF(p^2) ********/
 
@@ -180,7 +189,12 @@ void get_GF(char *a, char *b, const GF x) {
 void copy_GF(GF* res, const GF x){
   mpz_set(res->a, x.a);
   mpz_set(res->b, x.b);
-  res->parent = x.parent;
+
+  GF_params *parent;
+  parent = malloc(sizeof(GF_params));
+  setup_GF(parent,prime);
+
+  res->parent = parent;
 }
 
 void add_GF(GF *res, const GF x, const GF y) {
@@ -939,7 +953,8 @@ void shamir(GF* Rx, GF* Ry, GF* Rz,
   
    
   // some temporary registers
-  GF_params* field = A.parent;
+  GF_params* field = malloc(sizeof(GF_params));
+  setup_GF(field, prime);
   GF* tmp = field->GFtmp;
   // some other dynamically allocated registers 
   GF a, d, aPx, aPy, aQx, aQy, PQx, PQy;
@@ -962,7 +977,7 @@ void shamir(GF* Rx, GF* Ry, GF* Rz,
   sub_GF_ui(&tmp[1], tmp[1], 4);
   init_GF(&d, field);
   mul_GF(&d, tmp[1], tmp[0]);
-
+  
   /*
     Computing the Ewdards coordinates of P and Q:
       aPx, aPy = Edwards(P)
@@ -972,7 +987,7 @@ void shamir(GF* Rx, GF* Ry, GF* Rz,
   mont_to_ed(&aPx, &aPy, Px, Py, Pz);
   init_GF(&aQx, field); init_GF(&aQy, field);
   mont_to_ed(&aQx, &aQy, Qx, Qy, Qz);
-
+  
   /*
     Computing P+Q using affine Edwards.
   */
@@ -1005,8 +1020,6 @@ void shamir(GF* Rx, GF* Ry, GF* Rz,
   mpz_set_ui(Rx->a, 0); mpz_set_ui(Ry->a, 0); mpz_set_ui(Rz->a, 0);   
   mpz_set_ui(Rx->b, 0); mpz_set_ui(Ry->b, 1); mpz_set_ui(Rz->b, 1);
   Rx->parent = Ry->parent = Rz->parent = Px.parent;
-
-  printf("check1\n");
 
   for ( ; bit >=0 ; bit--){
     /* Double, using projective Edwards */
@@ -1534,7 +1547,10 @@ void push_through_iso(GF *A, GF *B, GF *A24,
                       GF *Px, GF *Py, GF *Pz,
                       GF *Qx, GF *Qy, GF *Qz, const int e) {
   
-    GF_params* field = A->parent;
+    GF_params* field;
+    field = malloc(sizeof(GF_params));
+    setup_GF(field, prime);
+
     int split, i, first = 1, first2=1;
     union isogenies phi;
     queue_point *tail, *tmp;
@@ -1708,7 +1724,7 @@ void copy_MC(MC *res, MC curve){
 void init_MC(MC* x) {
     GF_params* parent;
     parent = malloc(sizeof(GF_params));
-    setup_GF(parent,""); 
+    setup_GF(parent,prime); 
     init_GF( &(*x).A, parent);
     init_GF( &(*x).B, parent);
     init_GF( &(*x).A24, parent);
@@ -1766,7 +1782,7 @@ void init_MP(MP* a) {
     MC *curve;
     curve = malloc(sizeof(MC));
     parent = malloc(sizeof(GF_params));
-    setup_GF(parent,""); 
+    setup_GF(parent,prime); 
     
     init_GF( &(*a).x, parent );
     init_GF( &(*a).y, parent );
@@ -2012,6 +2028,7 @@ void params_from_file(char * p, char *eA, char *eB, char *lA, char *lB, int *str
     GF_params *parent;
     parent = malloc(sizeof(GF_params));
     setup_GF(parent, p);
+    prime = p;
    
     char *a;
     char *b;
@@ -2253,94 +2270,67 @@ char* join_strings(char* strings[], char* seperator, int count) {
 }
 
 
-char *MC_str(MC curve, int base) {
-  return concat(mpz_get_str(NULL, base, curve.A.a), mpz_get_str(NULL, base, curve.A.b),
-                mpz_get_str(NULL, base, curve.B.a), mpz_get_str(NULL, base, curve.B.b),
-                mpz_get_str(NULL, base, curve.A24.a), mpz_get_str(NULL, base, curve.A24.b), NULL);
+char *MC_str(MC *curve, int base) {
+  return concat(mpz_get_str(NULL, base, curve->A.a), mpz_get_str(NULL, base, curve->A.b),
+                mpz_get_str(NULL, base, curve->B.a), mpz_get_str(NULL, base, curve->B.b),
+                mpz_get_str(NULL, base, curve->A24.a), mpz_get_str(NULL, base, curve->A24.b), NULL);
 }
 
 char *MP_str(MP *point, int base) {
-  print_MP(point,"point");
-  char *st = concat(mpz_get_str(NULL, base, point->x.a), mpz_get_str(NULL, base, point->x.b),
-                    mpz_get_str(NULL, base, point->y.a), mpz_get_str(NULL, base, point->y.b),
-                    mpz_get_str(NULL, base, point->z.a), mpz_get_str(NULL, base, point->z.b),
-                    mpz_get_str(NULL, base, point->curve.A.a), mpz_get_str(NULL, base, point->curve.A.b),
-                    mpz_get_str(NULL, base, point->curve.B.a), mpz_get_str(NULL, base, point->curve.B.b),
-                    mpz_get_str(NULL, base, point->curve.A24.a), mpz_get_str(NULL, base, point->curve.A24.b), NULL);
-  return st;
+  //print_MP(point,"point");
+  return concat(mpz_get_str(NULL, base, point->x.a), mpz_get_str(NULL, base, point->x.b),
+                mpz_get_str(NULL, base, point->y.a), mpz_get_str(NULL, base, point->y.b),
+                mpz_get_str(NULL, base, point->z.a), mpz_get_str(NULL, base, point->z.b), NULL);
 }
 
 
-void string_data(char** data, int rounds, MC **com1, MC **com2, int *chal, MP **resp1, MP **resp2, char **hresp, int hrlen) {
+char *string_data(int base, MC **E_R_array, MC **E_RS_array, MP **R_array, MP **phiR_array, MP **psiS_array) {
   char **rdata;
-  rdata = malloc(rounds * sizeof(char*));
+  rdata = malloc(NUM_ROUNDS * sizeof(char*));
 
-  int base = 10;
-  for(int r=0; r<rounds; r++) {
-      char *E1 = concat(mpz_get_str(NULL, base, com1[r]->A.a), mpz_get_str(NULL, base, com1[r]->A.b),
-                        mpz_get_str(NULL, base, com1[r]->B.a), mpz_get_str(NULL, base, com1[r]->B.b),
-                        mpz_get_str(NULL, base, com1[r]->A24.a), mpz_get_str(NULL, base, com1[r]->A24.b), NULL);
-      //printf("E1: %s\n", E1);  
+  for(int r=0; r<NUM_ROUNDS; r++) {
+      char *E_R = MC_str(E_R_array[r], base);
+      char *E_RS = MC_str(E_RS_array[r], base);
 
-      char *E2 = concat(mpz_get_str(NULL, base, com2[r]->A.a), mpz_get_str(NULL, base, com2[r]->A.b),
-                        mpz_get_str(NULL, base, com2[r]->B.a), mpz_get_str(NULL, base, com2[r]->B.b),
-                        mpz_get_str(NULL, base, com2[r]->A24.a), mpz_get_str(NULL, base, com2[r]->A24.b), NULL);
-      //printf("E2: %s\n", E2);  
-
+/*
       char *ch;
       if (chal[r] == 0) ch = "01";
       else ch = "10";
       //printf("ch: %s\n", ch);
+*/
+      char *R = MP_str(R_array[r], base);
 
-      char *ch1R1 = concat(mpz_get_str(NULL, base, resp1[2*r]->x.a), mpz_get_str(NULL, base, resp1[2*r]->x.b),
-                        mpz_get_str(NULL, base, resp1[2*r]->y.a), mpz_get_str(NULL, base, resp1[2*r]->y.b),
-                        mpz_get_str(NULL, base, resp1[2*r]->z.a), mpz_get_str(NULL, base, resp1[2*r]->z.b),
-                        mpz_get_str(NULL, base, resp1[2*r]->curve.A.a), mpz_get_str(NULL, base, resp1[2*r]->curve.A.b),
-                        mpz_get_str(NULL, base, resp1[2*r]->curve.B.a), mpz_get_str(NULL, base, resp1[2*r]->curve.B.b),
-                        mpz_get_str(NULL, base, resp1[2*r]->curve.A24.a), mpz_get_str(NULL, base, resp1[2*r]->curve.A24.b), NULL);
-      //printf("ch1R1: %s\n", ch1R1);  
+      int hashlength = 32; // bytes
+      uint8_t hashresp0[hashlength];
+      uint8_t hashresp1[hashlength];
 
-      char *ch1R2 = concat(mpz_get_str(NULL, base, resp2[2*r]->x.a), mpz_get_str(NULL, base, resp2[2*r]->x.b),
-                        mpz_get_str(NULL, base, resp2[2*r]->y.a), mpz_get_str(NULL, base, resp2[2*r]->y.b),
-                        mpz_get_str(NULL, base, resp2[2*r]->z.a), mpz_get_str(NULL, base, resp2[2*r]->z.b),
-                        mpz_get_str(NULL, base, resp2[2*r]->curve.A.a), mpz_get_str(NULL, base, resp2[2*r]->curve.A.b),
-                        mpz_get_str(NULL, base, resp2[2*r]->curve.B.a), mpz_get_str(NULL, base, resp2[2*r]->curve.B.b),
-                        mpz_get_str(NULL, base, resp2[2*r]->curve.A24.a), mpz_get_str(NULL, base, resp2[2*r]->curve.A24.b), NULL);
-      //printf("ch1R2: %s\n", ch1R2);  
+      char *resp0 = concat(MP_str(R_array[r], base), MP_str(phiR_array[r], base), NULL);
+      char *resp1 = MP_str(psiS_array[r], base);
 
-      char *ch2R1 = concat(mpz_get_str(NULL, base, resp1[2*r+1]->x.a), mpz_get_str(NULL, base, resp1[2*r+1]->x.b),
-                        mpz_get_str(NULL, base, resp1[2*r+1]->y.a), mpz_get_str(NULL, base, resp1[2*r+1]->y.b),
-                        mpz_get_str(NULL, base, resp1[2*r+1]->z.a), mpz_get_str(NULL, base, resp1[2*r+1]->z.b),
-                        mpz_get_str(NULL, base, resp1[2*r+1]->curve.A.a), mpz_get_str(NULL, base, resp1[2*r+1]->curve.A.b),
-                        mpz_get_str(NULL, base, resp1[2*r+1]->curve.B.a), mpz_get_str(NULL, base, resp1[2*r+1]->curve.B.b),
-                        mpz_get_str(NULL, base, resp1[2*r+1]->curve.A24.a), mpz_get_str(NULL, base, resp1[2*r+1]->curve.A24.b), NULL);
-      //printf("ch2R1: %s\n", ch2R1);  
+      keccak((uint8_t*) resp0, strlen(resp0), hashresp0, hashlength);
+      keccak((uint8_t*) resp1, strlen(resp1), hashresp1, hashlength);
 
-      char *ch2R2 = concat(mpz_get_str(NULL, base, resp2[2*r+1]->x.a), mpz_get_str(NULL, base, resp2[2*r+1]->x.b),
-                        mpz_get_str(NULL, base, resp2[2*r+1]->y.a), mpz_get_str(NULL, base, resp2[2*r+1]->y.b),
-                        mpz_get_str(NULL, base, resp2[2*r+1]->z.a), mpz_get_str(NULL, base, resp2[2*r+1]->z.b),
-                        mpz_get_str(NULL, base, resp2[2*r+1]->curve.A.a), mpz_get_str(NULL, base, resp2[2*r+1]->curve.A.b),
-                        mpz_get_str(NULL, base, resp2[2*r+1]->curve.B.a), mpz_get_str(NULL, base, resp2[2*r+1]->curve.B.b),
-                        mpz_get_str(NULL, base, resp2[2*r+1]->curve.A24.a), mpz_get_str(NULL, base, resp2[2*r+1]->curve.A24.b), NULL);
-      //printf("ch2R2: %s\n", ch2R2);  
+      printf("hash 1: ");
+      for(int i=0; i<hashlength; i++) {
+        printf("%02X", hashresp0[i]);
+      }
+      printf("\nhash 2: ");
+      for(int i=0; i<hashlength; i++) {
+        printf("%02X", hashresp1[i]);
+      }
+      printf("\n");
 
-      rdata[r] = concat(E1, E2, ch, ch1R1, ch1R2, ch2R1, ch2R2, hresp[2*r], hresp[2*r+1], NULL);
+      rdata[r] = concat(E_R, E_RS, hashresp0, hashresp1, NULL);
       //printf("\nround %d data: %s\n", r, rdata[r]);
 
     }
-    *data = join_strings(rdata, "", rounds);
+    return join_strings(rdata, "", NUM_ROUNDS);
     //printf("\n\nall data:\n%s\n", *data);
 }
 
 
 
 
-
-///////////////////////////// GLOBAL VARIABLES FOR THREADING ///////////////////////////////
-int NUM_THREADS = 1;
-int NUM_ROUNDS = 32;
-int CUR_ROUND = 0;
-pthread_mutex_t MUTEX;
 
 
 
@@ -2365,12 +2355,12 @@ void run_ZKPs(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA,
   while (1) {
     int stop = 0;
 
-    pthread_mutex_lock(&MUTEX);
+    pthread_mutex_lock(&R_LOCK);
     if (CUR_ROUND >= NUM_ROUNDS) 
       stop = 1;
     r = CUR_ROUND;
     CUR_ROUND++;
-    pthread_mutex_unlock(&MUTEX);
+    pthread_mutex_unlock(&R_LOCK);
     
     if (stop) break;
 
@@ -2399,7 +2389,7 @@ void run_ZKPs(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA,
     init_GF(Rz, PB->x.parent);
 
     GF E_A, E_B, PBx, PBy, PBz, QBx, QBy, QBz;
-    
+
 
     printf("copied\n");
     shamir(Rx, Ry, Rz, E->A, E->B, PB->x, PB->y, PB->z, QB->x, QB->y, QB->z, mB, nB);
@@ -2413,8 +2403,6 @@ void run_ZKPs(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA,
 
     printf("copy ok\n");
 
-
-    continue;
 
     // Compute phi(R) by mB*phi(PB)+nB*phi(QB) instead of pushing through isogeny
 
@@ -2558,7 +2546,7 @@ double iu_sign(double *time, char * eA_str, char * eB_str, char * lA_str, char *
   // run the ZKP rounds
   pthread_t ZKP_threads[NUM_THREADS];
   CUR_ROUND = 0;
-  if (pthread_mutex_init(&MUTEX, NULL)) {
+  if (pthread_mutex_init(&R_LOCK, NULL)) {
     printf("ERROR: mutex init failed \n");
     return 1;
   }
@@ -2746,6 +2734,13 @@ int main(int argc, char *argv[]) {
       //print_Curve(E_SR_array[r]);
       
     }
+
+    // put all data into string and compute hash
+    int base = 10;
+    char *datastring = string_data(base, E_R_array, E_RS_array, R_array, phiR_array, psiS_array);
+    printf("data:\n%s\n\n\n\n", datastring);
+
+    
 /**/
 
 
