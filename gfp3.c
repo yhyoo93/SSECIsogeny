@@ -2284,13 +2284,16 @@ char *MP_str(MP *point, int base) {
 }
 
 
-char *string_data(int base, MC **E_R_array, MC **E_RS_array, MP **R_array, MP **phiR_array, MP **psiS_array) {
+char *string_data(int base, MC **E_R_array, MC **E_RS_array, uint8_t **hr0_array, uint8_t **hr1_array) {
   char **rdata;
   rdata = malloc(NUM_ROUNDS * sizeof(char*));
 
   for(int r=0; r<NUM_ROUNDS; r++) {
+      printf("stringdata round %d\n",r);
       char *E_R = MC_str(E_R_array[r], base);
       char *E_RS = MC_str(E_RS_array[r], base);
+      char *hr0 = (char*) hr0_array[r];
+      char *hr1 = (char*) hr1_array[r];
 
 /*
       char *ch;
@@ -2298,18 +2301,8 @@ char *string_data(int base, MC **E_R_array, MC **E_RS_array, MP **R_array, MP **
       else ch = "10";
       //printf("ch: %s\n", ch);
 */
-      char *R = MP_str(R_array[r], base);
 
-      int hashlength = 32; // bytes
-      uint8_t hashresp0[hashlength];
-      uint8_t hashresp1[hashlength];
-
-      char *resp0 = concat(MP_str(R_array[r], base), MP_str(phiR_array[r], base), NULL);
-      char *resp1 = MP_str(psiS_array[r], base);
-
-      keccak((uint8_t*) resp0, strlen(resp0), hashresp0, hashlength);
-      keccak((uint8_t*) resp1, strlen(resp1), hashresp1, hashlength);
-
+/*
       printf("hash 1: ");
       for(int i=0; i<hashlength; i++) {
         printf("%02X", hashresp0[i]);
@@ -2319,8 +2312,8 @@ char *string_data(int base, MC **E_R_array, MC **E_RS_array, MP **R_array, MP **
         printf("%02X", hashresp1[i]);
       }
       printf("\n");
-
-      rdata[r] = concat(E_R, E_RS, hashresp0, hashresp1, NULL);
+*/
+      rdata[r] = concat(E_R, E_RS, hr0, hr1, NULL);
       //printf("\nround %d data: %s\n", r, rdata[r]);
 
     }
@@ -2469,8 +2462,9 @@ void *run_ZKP_thread(void *TP) {
 
 
 double iu_sign(double *time, char * eA_str, char * eB_str, char * lA_str, char * lB_str, int *strA, int lenA, int *strB, int lenB, 
-                MP *PA, MP *QA, MP *PB, MP *QB,
-                MP **R_array, MP **phiR_array, MP **psiS_array, MC **E_R_array, MC **E_RS_array, MC **E_SR_array){
+                MP *PA, MP *QA, MP *PB, MP *QB, MC *E, MP *S, MC *E_S,
+                MP **R_array, MP **phiR_array, MP **psiS_array, MC **E_R_array, MC **E_RS_array,
+                uint8_t **hr0_array, uint8_t **hr1_array, MP **resp, int base){
   int good=0;
 
   int eA = atoi(eA_str);
@@ -2481,9 +2475,6 @@ double iu_sign(double *time, char * eA_str, char * eB_str, char * lA_str, char *
 
 
   // E
-  MC *E;
-  E = malloc(sizeof(MC));
-  init_MC(E);
   copy_MC(E, PA->curve);
 
   printf("******************** E ********************\n");
@@ -2491,11 +2482,6 @@ double iu_sign(double *time, char * eA_str, char * eB_str, char * lA_str, char *
 
 
   printf("---------------------Computing Peggy's Secret S\n");
-  
-  MP *S;
-  S = malloc(sizeof(MP));
-  init_MP(S);
-
   mpz_t *mA, *nA;
   mA = malloc(sizeof(mpz_t));
   nA = malloc(sizeof(mpz_t));
@@ -2510,11 +2496,7 @@ double iu_sign(double *time, char * eA_str, char * eB_str, char * lA_str, char *
 
 
   printf("------------------Computing phi: E -> E/<S>,  phi(PB), phi(QB)\n");
-
-  MC *E_S;
-  E_S = malloc(sizeof(MC));
-  init_MC(E_S);
-  copy_MC(E_S, PA->curve);
+  copy_MC(E_S, *E);
 
   MP *phiPB, *phiQB;
   phiPB = malloc(sizeof(MP));
@@ -2596,6 +2578,79 @@ double iu_sign(double *time, char * eA_str, char * eB_str, char * lA_str, char *
   }
 
 
+  // compute hashes of each response
+  int hashlength = 32; // bytes
+
+  for (int r=0; r<NUM_ROUNDS; r++) {
+    uint8_t *hashresp0 = malloc(hashlength * sizeof(uint8_t));
+    uint8_t *hashresp1 = malloc(hashlength * sizeof(uint8_t));
+
+    char *resp0 = concat(MP_str(R_array[r], base), MP_str(phiR_array[r], base), NULL);
+    char *resp1 = MP_str(psiS_array[r], base);
+
+    keccak((uint8_t*) resp0, strlen(resp0), hashresp0, hashlength);
+    keccak((uint8_t*) resp1, strlen(resp1), hashresp1, hashlength);
+
+    hr0_array[r] = hashresp0;
+    hr1_array[r] = hashresp1;
+
+    /*
+    printf("\nhash 0: ");
+    for(int i=0; i<32; i++) {
+      printf("%02X", hr0_array[r][i]);
+    }
+    printf("\nhash 1: ");
+    for(int i=0; i<32; i++) {
+      printf("%02X", hr1_array[r][i]);
+    }
+    printf("\n");
+    */
+  }
+
+
+  // put all data into string and compute hash
+  char *datastring = string_data(base, E_R_array, E_RS_array, hr0_array, hr1_array);
+  printf("data:\n%s\n\n\n\n", datastring);
+
+  int hashlen = NUM_ROUNDS/8;
+  uint8_t hash[hashlen];
+  keccak((uint8_t*) datastring, strlen(datastring), hash, hashlen);
+
+  printf("\nhash: ");
+  for(int i=0; i<hashlen; i++) {
+    printf("%02X", hash[i]);
+  }
+  printf("\n");
+
+  // iterate through bits of the hash and use as challenge bits and figure out responses
+  int r=0;
+  for(int i=0; i<hashlen; i++) {
+    for(int j=0; j<8; j++, r++) {
+      int bit = hash[i] & (1 << j); //challenge bit
+      if (bit == 0) {
+        MP *R = malloc(sizeof(MP));
+        MP *phiR = malloc(sizeof(MP));
+        init_MP(R);
+        init_MP(phiR);
+        copy_MP(R, *R_array[r]);
+        copy_MP(phiR, *phiR_array[r]);
+
+        resp[r] = malloc(2*sizeof(MP));
+        resp[r][0] = *R;
+        resp[r][1] = *phiR;
+      } else {
+        MP *psiS = malloc(sizeof(MP));
+        init_MP(psiS);
+        copy_MP(psiS, *psiS_array[r]);
+        
+        resp[r] = psiS;
+      }
+    }
+  }
+
+  
+
+
 
 /*
   run_ZKPs(eA_str, eB_str, lA_str, lB_str, strA, lenA, strB, lenB, E, E_S, S, PB, QB, phiPB, phiQB,
@@ -2617,6 +2672,86 @@ double iu_sign(double *time, char * eA_str, char * eB_str, char * lA_str, char *
   return 0;
 }
 
+
+int verify(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA, int lenA, int *strB, int lenB, 
+           MC *E, MC *E_S, MC **E_R_array, MC **E_RS_array, uint8_t **hr0_array, uint8_t **hr1_array, MP **resp, int base) {
+  int eA = atoi(eA_str);
+  int eB = atoi(eB_str);
+  int lA = atoi(lA_str);
+  int lB = atoi(lB_str);
+
+  printf("verify\n");
+
+  char *datastring = string_data(base, E_R_array, E_RS_array, hr0_array, hr1_array);
+
+  printf("data:\n%s\n\n", datastring);
+
+  int hashlen = NUM_ROUNDS/8;
+  uint8_t hash[hashlen];
+  keccak((uint8_t*) datastring, strlen(datastring), hash, hashlen);
+
+  printf("hashed\n");
+  // iterate through bits of the hash and verify
+  int r=0;
+
+  GF *A = malloc(sizeof(GF));
+  GF *B = malloc(sizeof(GF));
+  GF *A24=malloc(sizeof(GF));
+  GF_params *parent = malloc(sizeof(GF_params));
+  setup_GF(parent, prime);
+  init_GF(A, parent);
+  init_GF(B, parent);
+  init_GF(A24, parent);
+
+  for(int i=0; i<hashlen; i++) {
+    for(int j=0; j<8; j++, r++) {
+      printf("round %d\n", r);
+      int bit = hash[i] & (1 << j); //challenge bit
+      if (bit == 0) {
+        MP *R = &resp[r][0];
+        MP *phiR = &resp[r][1];
+        
+        //verify E -> E/<R>
+        copy_GF(A, E->A);
+        copy_GF(B, E->B);
+        copy_GF(A24, E->A24);
+
+        push_through_iso(A,B,A24,R->x,R->z,lB,strB,lenB-1,NULL,NULL,NULL,NULL,NULL,NULL,eB);
+
+        if (cmp_GF(*A,E_R_array[r]->A) && cmp_GF(*B,E_R_array[r]->B) && cmp_GF(*A24,E_R_array[r]->A24)) 
+          return 0;
+        
+        //verify E/<S> -> E/<R,S>
+        copy_GF(A, E_S->A);
+        copy_GF(B, E_S->B);
+        copy_GF(A24, E_S->A24);
+
+        push_through_iso(A,B,A24,phiR->x,phiR->z,lB,strB,lenB-1,NULL,NULL,NULL,NULL,NULL,NULL,eB);
+        
+        if (cmp_GF(*A,E_RS_array[r]->A) && cmp_GF(*B,E_RS_array[r]->B) && cmp_GF(*A24,E_RS_array[r]->A24)) 
+          return 0;
+        
+      } else {
+        MP *psiS = resp[r];
+
+        //verify E/<R> -> E/<R,S>
+        copy_GF(A, E_R_array[r]->A);
+        copy_GF(B, E_R_array[r]->B);
+        copy_GF(A24, E_R_array[r]->A24);
+
+        push_through_iso(A,B,A24,psiS->x,psiS->z,lA,strA,lenA-1,NULL,NULL,NULL,NULL,NULL,NULL,eA);
+
+        if (cmp_GF(*A,E_RS_array[r]->A) && cmp_GF(*B,E_RS_array[r]->B) && cmp_GF(*A24,E_RS_array[r]->A24)) 
+          return 0;
+        
+        
+      }
+    }
+  }
+
+
+  return 1;
+}
 
 
 
@@ -2687,6 +2822,13 @@ int main(int argc, char *argv[]) {
     
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
+    MC *E = malloc(sizeof(MC));
+    MP *S = malloc(sizeof(MP));
+    MC *E_S = malloc(sizeof(MC));
+    init_MC(E);
+    init_MP(S);
+    init_MC(E_S);
+
 
     MP *R_array[NUM_ROUNDS];
     MP *phiR_array[NUM_ROUNDS];
@@ -2714,13 +2856,24 @@ int main(int argc, char *argv[]) {
       init_MC(E_SR_array[r]);
     }
 
+    uint8_t **hr0_array, **hr1_array;
+    hr0_array = malloc(NUM_ROUNDS*sizeof(uint8_t*));
+    hr1_array = malloc(NUM_ROUNDS*sizeof(uint8_t*));
+
+    MP **resp = malloc(NUM_ROUNDS*sizeof(MP*));
+
     printf("signing\n");
+
+    int base = 10;
     
-    iu_sign(time, eA, eB, lA, lB, strA, lenA, strB, lenB, PA, QA, PB, QB, R_array, phiR_array, psiS_array, E_R_array, E_RS_array, E_SR_array);
+    iu_sign(time, eA, eB, lA, lB, strA, lenA, strB, lenB, PA, QA, PB, QB, 
+            E, S, E_S, R_array, phiR_array, psiS_array, E_R_array, E_RS_array, hr0_array, hr1_array, resp, base);
 
 
-
+/*
     // print everything
+    print_Curve(E);
+    print_Curve(E_S);
     for (int r=0; r<NUM_ROUNDS; r++) {
       printf("\n\nround %d \n", r+1);
       print_MP(R_array[r], "R");
@@ -2732,15 +2885,31 @@ int main(int argc, char *argv[]) {
       print_Curve(E_RS_array[r]);
       //printf("********* E/<S,R> *********\n");
       //print_Curve(E_SR_array[r]);
-      
+      printf("\nhash 0: ");
+      for(int i=0; i<32; i++) {
+        printf("%02X", hr0_array[r][i]);
+      }
+      printf("\nhash 1: ");
+      for(int i=0; i<32; i++) {
+        printf("%02X", hr1_array[r][i]);
+      }
+      printf("\n");
     }
+*/
 
-    // put all data into string and compute hash
-    int base = 10;
-    char *datastring = string_data(base, E_R_array, E_RS_array, R_array, phiR_array, psiS_array);
-    printf("data:\n%s\n\n\n\n", datastring);
 
     
+
+    //verify
+    int verified = 0;
+    verified = verify(eA,eB,lA,lB,strA,lenA,strB,lenB, E, E_S, E_R_array, E_RS_array, hr0_array, hr1_array, resp, base);
+    if (verified) {
+      printf("verified successfully\n");
+    } else {
+      printf("verify failed\n");
+    }
+
+
 /**/
 
 
