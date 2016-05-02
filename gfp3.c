@@ -2289,11 +2289,18 @@ char *string_data(int base, MC **E_R_array, MC **E_RS_array, uint8_t **hr0_array
   rdata = malloc(NUM_ROUNDS * sizeof(char*));
 
   for(int r=0; r<NUM_ROUNDS; r++) {
-      printf("stringdata round %d\n",r);
+      //printf("stringdata round %d\n",r);
+      
       char *E_R = MC_str(E_R_array[r], base);
       char *E_RS = MC_str(E_RS_array[r], base);
       uint8_t *hr0 = hr0_array[r];
       uint8_t *hr1 = hr1_array[r];
+      char hrc0[33];
+      char hrc1[33];
+      hrc0[32] = '\0';
+      hrc1[32] = '\0';
+      memcpy(hrc0, hr0, 32);
+      memcpy(hrc1, hr1, 32);
 
 /*
       char *ch;
@@ -2301,7 +2308,7 @@ char *string_data(int base, MC **E_R_array, MC **E_RS_array, uint8_t **hr0_array
       else ch = "10";
       //printf("ch: %s\n", ch);
 */
-
+/*
       printf("\nCurves: %d\n", r+1);
       print_Curve(E_R_array[r]);
       print_Curve(E_RS_array[r]);  
@@ -2316,8 +2323,8 @@ char *string_data(int base, MC **E_R_array, MC **E_RS_array, uint8_t **hr0_array
         printf("%02X", hr1[i]);
       }
       printf("\n");
-
-      rdata[r] = concat(E_R, E_RS, (char*) hr0, (char*) hr1, NULL);
+*/
+      rdata[r] = concat(E_R, E_RS, hrc0, hrc1, NULL);
       //printf("\nround %d data: %s\n", r, rdata[r]);
 
     }
@@ -2617,20 +2624,22 @@ double iu_sign(double *time, char * eA_str, char * eB_str, char * lA_str, char *
   // put all data into string and compute hash
   char *datastring = string_data(base, E_R_array, E_RS_array, hr0_array, hr1_array);
   //printf("data:\n%s\n\n\n\n", datastring);
+  /*
   globdata = malloc((strlen(datastring)+1) * sizeof(char));
   strcpy(globdata, datastring);
   printf("sign data:\n");
   printf("in hash:\n");
   for(int i=0; i<strlen(datastring); i++) {
-    printf("%02X", datastring[i]);
+    printf("%02X", (unsigned char)datastring[i]);
   }
   printf("\n");
-
+  */
+  
   int hashlen = NUM_ROUNDS/8;
   uint8_t hash[hashlen];
   keccak((uint8_t*) datastring, strlen(datastring), hash, hashlen);
 
-  printf("\nhash: ");
+  printf("hash: ");
   for(int i=0; i<hashlen; i++) {
     printf("%02X", hash[i]);
   }
@@ -2697,10 +2706,11 @@ int verify(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA, in
   printf("verify\n");
 
   char *datastring = string_data(base, E_R_array, E_RS_array, hr0_array, hr1_array);
+  /*
   printf("verify data:\n");
   printf("in hash:\n");
   for(int i=0; i<strlen(datastring); i++) {
-    printf("%02X", datastring[i]);
+    printf("%02X", (unsigned char)datastring[i]);
   }
   printf("\n");
   
@@ -2710,13 +2720,13 @@ int verify(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA, in
     printf("glob: %c%c%c%c\ndata: %c%c%c%c\n", globdata[cmp-1],globdata[cmp],globdata[cmp+1],globdata[cmp+2],
       datastring[cmp-1],datastring[cmp],datastring[cmp+1],datastring[cmp+2]);
   }
+  */
 
   int hashlen = NUM_ROUNDS/8;
   uint8_t hash[hashlen];
   keccak((uint8_t*) datastring, strlen(datastring), hash, hashlen);
 
-  printf("hashed\n");
-  printf("\nhash: ");
+  printf("hash: ");
   for(int i=0; i<hashlen; i++) {
     printf("%02X", hash[i]);
   }
