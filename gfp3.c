@@ -63,7 +63,7 @@ typedef struct {
 // basically its characteristic and some work registers
 struct GF_params {
   mpz_t p, tmp1, tmp2, tmp3;
-  GF GFtmp[GF_TMP_REGS];
+  GF *GFtmp;
   gmp_randstate_t state;
   int initialized;
 };
@@ -141,6 +141,8 @@ int setup_GF(GF_params* field, const char* characteristic) {
 
   gmp_randinit_default(field->state);
   mpz_init(field->tmp1); mpz_init(field->tmp2); mpz_init(field->tmp3);
+  
+  field->GFtmp = malloc(GF_TMP_REGS * sizeof(GF));
   int i;
   for (i = 0 ; i < GF_TMP_REGS ; i++)
     init_GF(&field->GFtmp[i], field);
@@ -1048,17 +1050,17 @@ void shamir(GF* Rx, GF* Ry, GF* Rz,
     int r = mpz_tstbit(m, bit) | (mpz_tstbit(n, bit) << 1);
     if (r) {
       if (r == 1) {
-  mul_GF(&tmp[0], *Rx, aPx); // tmp0 = C = Rx aPx
-  mul_GF(&tmp[1], *Ry, aPy); // tmp1 = D = Ry aPy
-  add_GF(&tmp[2], aPx, aPy);  // tmp2 = H = aPx + aPy
+        mul_GF(&tmp[0], *Rx, aPx); // tmp0 = C = Rx aPx
+        mul_GF(&tmp[1], *Ry, aPy); // tmp1 = D = Ry aPy
+        add_GF(&tmp[2], aPx, aPy);  // tmp2 = H = aPx + aPy
       } else if (r == 2) {
-  mul_GF(&tmp[0], *Rx, aQx); // tmp0 = C = Rx aQx
-  mul_GF(&tmp[1], *Ry, aQy); // tmp1 = D = Ry aQy
-  add_GF(&tmp[2], aQx, aQy);  // tmp2 = H = aQx + aQy
+        mul_GF(&tmp[0], *Rx, aQx); // tmp0 = C = Rx aQx
+        mul_GF(&tmp[1], *Ry, aQy); // tmp1 = D = Ry aQy
+        add_GF(&tmp[2], aQx, aQy);  // tmp2 = H = aQx + aQy
       } else {
-  mul_GF(&tmp[0], *Rx, PQx); // tmp0 = C = Rx PQx
-  mul_GF(&tmp[1], *Ry, PQy); // tmp1 = D = Ry PQy
-  add_GF(&tmp[2], PQx, PQy);  // tmp2 = H = PQx + PQy
+        mul_GF(&tmp[0], *Rx, PQx); // tmp0 = C = Rx PQx
+        mul_GF(&tmp[1], *Ry, PQy); // tmp1 = D = Ry PQy
+        add_GF(&tmp[2], PQx, PQy);  // tmp2 = H = PQx + PQy
       }
       sqr_GF(&tmp[3], *Rz); // tmp3 = B = Rz^2
       mul_GF(&tmp[5], tmp[0], tmp[1]);
