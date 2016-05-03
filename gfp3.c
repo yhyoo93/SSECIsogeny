@@ -983,11 +983,12 @@ void shamir(GF* Rx, GF* Ry, GF* Rz,
       aPx, aPy = Edwards(P)
       aQx, aQy = Edwards(Q)
   */
+  printf("CHECK 1111111\n");
   init_GF(&aPx, field); init_GF(&aPy, field);
   mont_to_ed(&aPx, &aPy, Px, Py, Pz);
   init_GF(&aQx, field); init_GF(&aQy, field);
   mont_to_ed(&aQx, &aQy, Qx, Qy, Qz);
-  
+  printf("CHECK 22222222\n");
   /*
     Computing P+Q using affine Edwards.
   */
@@ -1016,10 +1017,13 @@ void shamir(GF* Rx, GF* Ry, GF* Rz,
   init_GF(&PQx, field);
   mul_GF(&PQx, tmp[7], tmp[8]); // PQx = (1-E)(A B - C - D) / (1-E^2)*/
   
+  printf("CHECK 3333333333\n");
   int bit = MAX(mpz_sizeinbase(m, 2), mpz_sizeinbase(n, 2)) - 1;
   mpz_set_ui(Rx->a, 0); mpz_set_ui(Ry->a, 0); mpz_set_ui(Rz->a, 0);   
   mpz_set_ui(Rx->b, 0); mpz_set_ui(Ry->b, 1); mpz_set_ui(Rz->b, 1);
   Rx->parent = Ry->parent = Rz->parent = Px.parent;
+
+  printf("CHECK 444444444444\n");
 
   for ( ; bit >=0 ; bit--){
     /* Double, using projective Edwards */
@@ -1039,6 +1043,7 @@ void shamir(GF* Rx, GF* Ry, GF* Rz,
     mul_GF(Ry, tmp[7], tmp[4]); // Ry = (E-D) F
     mul_GF(Rz, tmp[4], tmp[6]); // Rz = F J
 
+    printf("check123 %d\n", bit);
     /* Double and Add, using projective Edwards */
     int r = mpz_tstbit(m, bit) | (mpz_tstbit(n, bit) << 1);
     if (r) {
@@ -1074,6 +1079,7 @@ void shamir(GF* Rx, GF* Ry, GF* Rz,
     }
   }
 
+  printf("CHECK 55555555555555\n");
   /* Convert to Montgomery */
   add_GF(&tmp[0], *Rz, *Ry);
   sub_GF(&tmp[1], *Rz, *Ry);
@@ -1928,7 +1934,7 @@ void  subtract(MP *res, MP P, MP Q){
 
 
 //returns a random integer from 0 to m (inclusive)
-void rand_range(mpz_t *num, mpz_t m){
+void rand_range(mpz_t *num, const mpz_t m){
     
     unsigned long int bytes;
     mpz_t *tmp1, *tmp2;
@@ -1949,16 +1955,16 @@ void rand_range(mpz_t *num, mpz_t m){
     
     sprintf(buf2,"\n");
     *(buf2 + 1) = '\0';
-    mpz_set_str(tmp1, buf1, 16);
-    mpz_add_ui(tmp2, m, 1);
+    mpz_set_str(*tmp1, buf1, 16);
+    mpz_add_ui(*tmp2, m, 1);
     
-    mpz_mod(num, tmp1, tmp2); 
+    mpz_mod(*num, *tmp1, *tmp2); 
     free(tmp1);free(tmp2);
 }
 
 
 
-void rand_subgroup(mpz_t *m, mpz_t *n, char * l, char * e){
+void rand_subgroup(mpz_t *m, mpz_t *n, const char * l, const char * e){
   
     mpz_t *num, *_l, *_e, *tmp1, *le, *le1, *l1;
     num = malloc(sizeof(mpz_t));
@@ -1971,29 +1977,29 @@ void rand_subgroup(mpz_t *m, mpz_t *n, char * l, char * e){
      
     long int e_int = 0;
     e_int = atoi(e);
-    mpz_init(le);
-    mpz_init(le1);
-    mpz_init(l1);
-    mpz_init(tmp1);
-    mpz_init(num);
+    mpz_init(*le);
+    mpz_init(*le1);
+    mpz_init(*l1);
+    mpz_init(*tmp1);
+    mpz_init(*num);
     
-    mpz_init_set_str(_l, l, 10);
-    mpz_init_set_str(_e, e, 10);
-    mpz_add_ui(l1, _l, 1);
+    mpz_init_set_str(*_l, l, 10);
+    mpz_init_set_str(*_e, e, 10);
+    mpz_add_ui(*l1, *_l, 1);
     rand_range(num, *l1);
         
     if ( mpz_cmp_ui(*num, 1)==0 ){
-        mpz_set_ui(m, 1);
-        mpz_pow_ui(le, _l, e_int);
+        mpz_set_ui(*m, 1);
+        mpz_pow_ui(*le, *_l, e_int);
         rand_range(n, *le);
     }else{
-        mpz_pow_ui(le1, _l, e_int-1);
+        mpz_pow_ui(*le1, *_l, e_int-1);
         rand_range(tmp1, *le1);
-        mpz_mul(m, tmp1, _l);
-        mpz_set_ui(n, 1);
+        mpz_mul(*m, *tmp1, *_l);
+        mpz_set_ui(*n, 1);
     }
     
-    free(num);free(_l);free(_e);free(tmp1);free(le);free(le1);free(l1);
+    //free(num);free(_l);free(_e);free(tmp1);free(le);free(le1);free(l1);
     
 }
 
@@ -2362,10 +2368,12 @@ void run_ZKPs(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA,
     int stop = 0;
 
     pthread_mutex_lock(&R_LOCK);
-    if (CUR_ROUND >= NUM_ROUNDS) 
+    if (CUR_ROUND >= NUM_ROUNDS) { 
       stop = 1;
-    r = CUR_ROUND;
-    CUR_ROUND++;
+    } else {
+      r = CUR_ROUND;
+      CUR_ROUND++;
+    }
     pthread_mutex_unlock(&R_LOCK);
     
     if (stop) break;
@@ -2386,19 +2394,25 @@ void run_ZKPs(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA,
 
     printf("shamir go\n");
 
+    // not necessary?
+    GF_params *parent;
+    parent = malloc(sizeof(GF_params));
+    setup_GF(parent, prime);
+
+
     GF *Rx, *Ry, *Rz;
     Rx=malloc(sizeof(GF));
     Ry=malloc(sizeof(GF));
     Rz=malloc(sizeof(GF));
-    init_GF(Rx, PB->x.parent);
-    init_GF(Ry, PB->x.parent);
-    init_GF(Rz, PB->x.parent);
+    init_GF(Rx, parent);
+    init_GF(Ry, parent);
+    init_GF(Rz, parent);
 
     GF E_A, E_B, PBx, PBy, PBz, QBx, QBy, QBz;
 
 
     printf("copied\n");
-    shamir(Rx, Ry, Rz, E->A, E->B, PB->x, PB->y, PB->z, QB->x, QB->y, QB->z, mB, nB);
+    shamir(Rx, Ry, Rz, E->A, E->B, PB->x, PB->y, PB->z, QB->x, QB->y, QB->z, *mB, *nB);
 
     printf("shamir ok\n");
 
@@ -2414,6 +2428,15 @@ void run_ZKPs(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA,
 
     printf("shamir go\n");
 
+/*
+    GF *Rx, *Ry, *Rz;
+    Rx=malloc(sizeof(GF));
+    Ry=malloc(sizeof(GF));
+    Rz=malloc(sizeof(GF));
+    init_GF(Rx, parent);
+    init_GF(Ry, parent);
+    init_GF(Rz, parent);
+*/
 
     shamir(&phiR_array[r]->x, &phiR_array[r]->y, &phiR_array[r]->z, E_S->A, E_S->B, phiPB->x, phiPB->y, phiPB->z, phiQB->x, phiQB->y, phiQB->z, *mB, *nB);
     
@@ -2743,10 +2766,13 @@ int verify(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA, in
   init_GF(B, parent);
   init_GF(A24, parent);
 
+  int rvalue=1;
+
   for(int i=0; i<hashlen; i++) {
     for(int j=0; j<8; j++, r++) {
-      printf("round %d\n", r);
+      printf("round %d,", r);
       int bit = hash[i] & (1 << j); //challenge bit
+      printf("bit: %d\n", bit);
       if (bit == 0) {
         MP *R = &resp[r][0];
         MP *phiR = &resp[r][1];
@@ -2758,8 +2784,14 @@ int verify(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA, in
 
         push_through_iso(A,B,A24,R->x,R->z,lB,strB,lenB-1,NULL,NULL,NULL,NULL,NULL,NULL,eB);
 
-        if (cmp_GF(*A,E_R_array[r]->A) && cmp_GF(*B,E_R_array[r]->B) && cmp_GF(*A24,E_R_array[r]->A24)) 
-          return 0;
+        if (cmp_GF(*A,E_R_array[r]->A) && cmp_GF(*B,E_R_array[r]->B) && cmp_GF(*A24,E_R_array[r]->A24)) {
+          printf("E_R:\n");
+          print_Curve(E_R_array[r]);
+          print_GF(*A,"\nA");
+          print_GF(*B,"B");
+          print_GF(*A24,"A24");
+          rvalue = 0;
+        }
         
         //verify E/<S> -> E/<R,S>
         copy_GF(A, E_S->A);
@@ -2768,8 +2800,14 @@ int verify(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA, in
 
         push_through_iso(A,B,A24,phiR->x,phiR->z,lB,strB,lenB-1,NULL,NULL,NULL,NULL,NULL,NULL,eB);
         
-        if (cmp_GF(*A,E_RS_array[r]->A) && cmp_GF(*B,E_RS_array[r]->B) && cmp_GF(*A24,E_RS_array[r]->A24)) 
-          return 0;
+        if (cmp_GF(*A,E_RS_array[r]->A) && cmp_GF(*B,E_RS_array[r]->B) && cmp_GF(*A24,E_RS_array[r]->A24)) {
+          printf("E_RS:\n");
+          print_Curve(E_RS_array[r]);
+          print_GF(*A,"\nA");
+          print_GF(*B,"B");
+          print_GF(*A24,"A24");
+          rvalue = 0;
+        }
         
       } else {
         MP *psiS = resp[r];
@@ -2781,16 +2819,21 @@ int verify(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA, in
 
         push_through_iso(A,B,A24,psiS->x,psiS->z,lA,strA,lenA-1,NULL,NULL,NULL,NULL,NULL,NULL,eA);
 
-        if (cmp_GF(*A,E_RS_array[r]->A) && cmp_GF(*B,E_RS_array[r]->B) && cmp_GF(*A24,E_RS_array[r]->A24)) 
-          return 0;
-        
+        if (cmp_GF(*A,E_RS_array[r]->A) && cmp_GF(*B,E_RS_array[r]->B) && cmp_GF(*A24,E_RS_array[r]->A24)) {
+          printf("E_RS(psiS):\n");
+          print_Curve(E_RS_array[r]);
+          print_GF(*A,"\nA");
+          print_GF(*B,"B");
+          print_GF(*A24,"A24");
+          rvalue = 0;
+        }
         
       }
     }
   }
 
 
-  return 1;
+  return rvalue;
 }
 
 
@@ -2910,7 +2953,7 @@ int main(int argc, char *argv[]) {
             E, S, E_S, R_array, phiR_array, psiS_array, E_R_array, E_RS_array, hr0_array, hr1_array, resp, base);
 
 
-/*
+
     // print everything
     print_Curve(E);
     print_Curve(E_S);
@@ -2935,7 +2978,7 @@ int main(int argc, char *argv[]) {
       }
       printf("\n");
     }
-*/
+
 
 
     
