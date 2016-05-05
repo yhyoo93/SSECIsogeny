@@ -2784,6 +2784,51 @@ int verify(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA, in
         copy_GF(B, E->B);
         copy_GF(A24, E->A24);
 
+        // check order
+        GF Rx1, Rz1, Rx2, Rz2;
+        init_GF(&Rx1, parent);
+        init_GF(&Rz1, parent);
+        init_GF(&Rx2, parent);
+        init_GF(&Rz2, parent);
+        
+        GF *curx, *curz, *tripx, *tripz;
+        curx = &Rx1;
+        curz = &Rz1;
+        tripx = &Rx2;
+        tripz = &Rz2;
+
+        copy_GF(curx, R->x);
+        copy_GF(curz, R->z);
+
+        for (int k=0; k < eB; k++) {
+          mont_triple(tripx, tripz, *curx, *curz, R->curve.A24);
+
+          if (k < eB-1 && is_zero_GF(*tripz)) { 
+            print_GF(*tripz, "z");
+            rvalue = 0;
+          }
+
+          /*
+          printf("\n");
+          print_GF(*tripx, "x");
+          print_GF(*tripz, "z");
+          /**/
+
+          if (curx == &Rx1) {
+            curx = &Rx2;
+            curz = &Rz2;
+            tripx = &Rx1;
+            tripz = &Rz1;
+          } else {
+            curx = &Rx1;
+            curz = &Rz1;
+            tripx = &Rx2;
+            tripz = &Rz2;
+          }
+        }
+        if (!is_zero_GF(*curz)) rvalue = 0;
+
+        // check kernel
         push_through_iso(A,B,A24,R->x,R->z,lB,strB,lenB-1,NULL,NULL,NULL,NULL,NULL,NULL,eB);
 
         if (cmp_GF(*A,E_R_array[r]->A) && cmp_GF(*B,E_R_array[r]->B) && cmp_GF(*A24,E_R_array[r]->A24)) {
@@ -2799,6 +2844,49 @@ int verify(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA, in
         copy_GF(A, E_S->A);
         copy_GF(B, E_S->B);
         copy_GF(A24, E_S->A24);
+
+        // check order
+        GF phiRx1, phiRz1, phiRx2, phiRz2;
+        init_GF(&phiRx1, parent);
+        init_GF(&phiRz1, parent);
+        init_GF(&phiRx2, parent);
+        init_GF(&phiRz2, parent);
+        
+        curx = &phiRx1;
+        curz = &phiRz1;
+        tripx = &phiRx2;
+        tripz = &phiRz2;
+
+        copy_GF(curx, phiR->x);
+        copy_GF(curz, phiR->z);
+
+        for (int k=0; k < eB; k++) {
+          mont_triple(tripx, tripz, *curx, *curz, phiR->curve.A24);
+
+          if (k < eB-1 && is_zero_GF(*tripz)) { 
+            print_GF(*tripz, "z");
+            rvalue = 0;
+          }
+
+          /*
+          printf("\n");
+          print_GF(*tripx, "x");
+          print_GF(*tripz, "z");
+          /**/
+
+          if (curx == &phiRx1) {
+            curx = &phiRx2;
+            curz = &phiRz2;
+            tripx = &phiRx1;
+            tripz = &phiRz1;
+          } else {
+            curx = &phiRx1;
+            curz = &phiRz1;
+            tripx = &phiRx2;
+            tripz = &phiRz2;
+          }
+        }
+        if (!is_zero_GF(*curz)) rvalue = 0;
 
         push_through_iso(A,B,A24,phiR->x,phiR->z,lB,strB,lenB-1,NULL,NULL,NULL,NULL,NULL,NULL,eB);
         
@@ -2818,6 +2906,50 @@ int verify(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA, in
         copy_GF(A, E_R_array[r]->A);
         copy_GF(B, E_R_array[r]->B);
         copy_GF(A24, E_R_array[r]->A24);
+
+        // check order
+        GF psiSx1, psiSz1, psiSx2, psiSz2;
+        init_GF(&psiSx1, parent);
+        init_GF(&psiSz1, parent);
+        init_GF(&psiSx2, parent);
+        init_GF(&psiSz2, parent);
+        
+        GF *curx, *curz, *doubx, *doubz;
+        curx = &psiSx1;
+        curz = &psiSz1;
+        doubx = &psiSx2;
+        doubz = &psiSz2;
+
+        copy_GF(curx, psiS->x);
+        copy_GF(curz, psiS->z);
+
+        for (int k=0; k < eA; k++) {
+          mont_double(doubx, doubz, *curx, *curz, psiS->curve.A24);
+
+          if (k < eA-1 && is_zero_GF(*doubz)) { 
+            print_GF(*doubz, "z");
+            rvalue = 0;
+          }
+          /*
+          printf("\n");
+          print_GF(*doubx, "x");
+          print_GF(*doubz, "z");
+          /**/
+
+          if (curx == &psiSx1) {
+            curx = &psiSx2;
+            curz = &psiSz2;
+            doubx = &psiSx1;
+            doubz = &psiSz1;
+          } else {
+            curx = &psiSx1;
+            curz = &psiSz1;
+            doubx = &psiSx2;
+            doubz = &psiSz2;
+          }
+        }
+
+        if (!is_zero_GF(*curz)) rvalue = 0;
 
         push_through_iso(A,B,A24,psiS->x,psiS->z,lA,strA,lenA-1,NULL,NULL,NULL,NULL,NULL,NULL,eA);
 
