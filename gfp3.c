@@ -102,7 +102,7 @@ int NUM_ROUNDS = 32;
 int CUR_ROUND = 0;
 pthread_mutex_t R_LOCK, GF_LOCK;
 char *prime;
-
+int verbose = 0;
 
 
 
@@ -938,7 +938,7 @@ void shamir(GF* Rx, GF* Ry, GF* Rz,
       const GF Qx, const GF Qy, const GF Qz,
       const mpz_t m, const mpz_t n) {
   
-  printf("SHAMIR:\n");
+  //printf("SHAMIR:\n");
   /*
   print_GF(*Rx, "Rx");
   print_GF(*Ry, "Ry");
@@ -985,12 +985,16 @@ void shamir(GF* Rx, GF* Ry, GF* Rz,
       aPx, aPy = Edwards(P)
       aQx, aQy = Edwards(Q)
   */
-  printf("CHECK 1111111\n");
+  
+  //printf("CHECK 1111111\n");
+  
   init_GF(&aPx, field); init_GF(&aPy, field);
   mont_to_ed(&aPx, &aPy, Px, Py, Pz);
   init_GF(&aQx, field); init_GF(&aQy, field);
   mont_to_ed(&aQx, &aQy, Qx, Qy, Qz);
-  printf("CHECK 22222222\n");
+  
+  //printf("CHECK 22222222\n");
+  
   /*
     Computing P+Q using affine Edwards.
   */
@@ -1019,13 +1023,14 @@ void shamir(GF* Rx, GF* Ry, GF* Rz,
   init_GF(&PQx, field);
   mul_GF(&PQx, tmp[7], tmp[8]); // PQx = (1-E)(A B - C - D) / (1-E^2)*/
   
-  printf("CHECK 3333333333\n");
+  //printf("CHECK 3333333333\n");
+
   int bit = MAX(mpz_sizeinbase(m, 2), mpz_sizeinbase(n, 2)) - 1;
   mpz_set_ui(Rx->a, 0); mpz_set_ui(Ry->a, 0); mpz_set_ui(Rz->a, 0);   
   mpz_set_ui(Rx->b, 0); mpz_set_ui(Ry->b, 1); mpz_set_ui(Rz->b, 1);
   Rx->parent = Ry->parent = Rz->parent = Px.parent;
 
-  printf("CHECK 444444444444\n");
+  //printf("CHECK 444444444444\n");
 
   for ( ; bit >=0 ; bit--){
     /* Double, using projective Edwards */
@@ -1045,7 +1050,6 @@ void shamir(GF* Rx, GF* Ry, GF* Rz,
     mul_GF(Ry, tmp[7], tmp[4]); // Ry = (E-D) F
     mul_GF(Rz, tmp[4], tmp[6]); // Rz = F J
 
-    printf("check123 %d\n", bit);
     /* Double and Add, using projective Edwards */
     int r = mpz_tstbit(m, bit) | (mpz_tstbit(n, bit) << 1);
     if (r) {
@@ -1081,7 +1085,8 @@ void shamir(GF* Rx, GF* Ry, GF* Rz,
     }
   }
 
-  printf("CHECK 55555555555555\n");
+  //printf("CHECK 55555555555555\n");
+  
   /* Convert to Montgomery */
   add_GF(&tmp[0], *Rz, *Ry);
   sub_GF(&tmp[1], *Rz, *Ry);
@@ -2394,7 +2399,6 @@ void run_ZKPs(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA,
     rand_subgroup(mB,nB,lB_str,eB_str);
 
 
-    printf("shamir go\n");
 
     // not necessary?
     GF_params *parent;
@@ -2410,47 +2414,29 @@ void run_ZKPs(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA,
     init_GF(Ry, parent);
     init_GF(Rz, parent);
 
-    GF E_A, E_B, PBx, PBy, PBz, QBx, QBy, QBz;
+    //GF E_A, E_B, PBx, PBy, PBz, QBx, QBy, QBz;
 
 
-    printf("copied\n");
     shamir(Rx, Ry, Rz, E->A, E->B, PB->x, PB->y, PB->z, QB->x, QB->y, QB->z, *mB, *nB);
-
-    printf("shamir ok\n");
 
     copy_GF(&R_array[r]->x, *Rx);
     copy_GF(&R_array[r]->y, *Ry);
     copy_GF(&R_array[r]->z, *Rz);
     copy_MC(&R_array[r]->curve, *E);
 
-    printf("copy ok\n");
-
 
     // Compute phi(R) by mB*phi(PB)+nB*phi(QB) instead of pushing through isogeny
-
-    printf("shamir go\n");
-
-/*
-    GF *Rx, *Ry, *Rz;
-    Rx=malloc(sizeof(GF));
-    Ry=malloc(sizeof(GF));
-    Rz=malloc(sizeof(GF));
-    init_GF(Rx, parent);
-    init_GF(Ry, parent);
-    init_GF(Rz, parent);
-*/
 
     shamir(&phiR_array[r]->x, &phiR_array[r]->y, &phiR_array[r]->z, E_S->A, E_S->B, phiPB->x, phiPB->y, phiPB->z, phiQB->x, phiQB->y, phiQB->z, *mB, *nB);
     
 
-    printf("shamir ok\n");
-
 
     copy_MC(&phiR_array[r]->curve, *E_S);
 
-    print_MP(R_array[r], "************* R *************");
-    print_MP(phiR_array[r], "************* phi(R) *************");
-    
+    if (verbose) {
+      print_MP(R_array[r], "************* R *************");
+      print_MP(phiR_array[r], "************* phi(R) *************");
+    }
 
 
     /////////////////////////////////////////////////////////
@@ -2458,28 +2444,21 @@ void run_ZKPs(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA,
 
 
     copy_MC(E_R_array[r], *E);
-    copy_MP(psiS_array[r], *S);
-
-    printf("iso go\n");
-    
+    copy_MP(psiS_array[r], *S);    
     
     push_through_iso(&E_R_array[r]->A, &E_R_array[r]->B, &E_R_array[r]->A24, R_array[r]->x, R_array[r]->z, lB, strB, lenB-1, &psiS_array[r]->x, &psiS_array[r]->y, &psiS_array[r]->z, NULL, NULL, NULL, eB);
 
-    printf("iso ok\n");
-
     copy_MC(&psiS_array[r]->curve, *E_R_array[r]);
 
-    print_Curve(E_R_array[r]);
-    print_MP(psiS_array[r], "************* psi(S) *************");
-
+    if (verbose) {
+      print_Curve(E_R_array[r]);
+      print_MP(psiS_array[r], "************* psi(S) *************");
+    }
 
     //////////////////////////////////////////////////////
     printf("------------Computing E/<R,S>\n");
 
     copy_MC(E_RS_array[r], *E_R_array[r]);
-
-    printf("iso go\n");
-    
 
     push_through_iso(&E_RS_array[r]->A, &E_RS_array[r]->B, &E_RS_array[r]->A24, psiS_array[r]->x, psiS_array[r]->z, lA, strA, lenA-1, NULL, NULL, NULL, NULL, NULL, NULL, eA);
 
@@ -2490,7 +2469,6 @@ void run_ZKPs(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA,
 
 
 void *run_ZKP_thread(void *TP) {
-  printf("hello\n");
   thread_params *tp = (thread_params*) TP;
   run_ZKPs(tp->eA_str, tp->eB_str, tp->lA_str, tp->lB_str, tp->strA, tp->lenA, tp->strB, tp->lenB, 
             tp->E, tp->E_S, tp->S, tp->PB, tp->QB, tp->phiPB, tp->phiQB,
@@ -2557,9 +2535,10 @@ double iu_sign(double *time, char * eA_str, char * eB_str, char * lA_str, char *
   copy_MC(&phiQB->curve, *E_S);
   */
 
-  printf("\nE_S:\n");
-  print_Curve(E_S);
-
+  if (verbose) {
+    printf("\nE_S:\n");
+    print_Curve(E_S);
+  }
 
   printf("\nstart threading\n");
   /////////////////////////////////////////////////////////////////////////////////
@@ -2576,7 +2555,7 @@ double iu_sign(double *time, char * eA_str, char * eB_str, char * lA_str, char *
   printf("numthreads: %d\nnumrounds: %d\ncurround: %d\n", NUM_THREADS, NUM_ROUNDS, CUR_ROUND);
 
   for (int t=0; t<NUM_THREADS; t++) {
-    printf("thread %d\n", t);
+    //printf("thread %d\n", t);
     
     MC *Ecopy, *E_Scopy;
     MP *Scopy, *PBcopy, *QBcopy, *phiPBcopy, *phiQBcopy;
@@ -2632,33 +2611,33 @@ double iu_sign(double *time, char * eA_str, char * eB_str, char * lA_str, char *
     hr0_array[r] = hashresp0;
     hr1_array[r] = hashresp1;
 
-    /*
-    printf("\nhash 0: ");
-    for(int i=0; i<32; i++) {
-      printf("%02X", hr0_array[r][i]);
+    if (verbose) {
+      printf("\nhash 0: ");
+      for(int i=0; i<32; i++) {
+        printf("%02X", hr0_array[r][i]);
+      }
+      printf("\nhash 1: ");
+      for(int i=0; i<32; i++) {
+        printf("%02X", hr1_array[r][i]);
+      }
+      printf("\n");
     }
-    printf("\nhash 1: ");
-    for(int i=0; i<32; i++) {
-      printf("%02X", hr1_array[r][i]);
-    }
-    printf("\n");
-    */
   }
 
 
   // put all data into string and compute hash
   char *datastring = string_data(base, E_R_array, E_RS_array, hr0_array, hr1_array);
-  //printf("data:\n%s\n\n\n\n", datastring);
-  /*
-  globdata = malloc((strlen(datastring)+1) * sizeof(char));
-  strcpy(globdata, datastring);
-  printf("sign data:\n");
-  printf("in hash:\n");
-  for(int i=0; i<strlen(datastring); i++) {
-    printf("%02X", (unsigned char)datastring[i]);
+  
+  if (verbose) {
+    printf("data:\n%s\n\n\n\n", datastring);
+    
+    printf("sign data:\n");
+    printf("in hash:\n");
+    for(int i=0; i<strlen(datastring); i++) {
+      printf("%02X", (unsigned char)datastring[i]);
+    }
+    printf("\n");
   }
-  printf("\n");
-  */
   
   int hashlen = NUM_ROUNDS/8;
   uint8_t hash[hashlen];
@@ -2804,21 +2783,15 @@ int verify(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA, in
   printf("verify\n");
 
   char *datastring = string_data(base, E_R_array, E_RS_array, hr0_array, hr1_array);
-  /*
-  printf("verify data:\n");
-  printf("in hash:\n");
-  for(int i=0; i<strlen(datastring); i++) {
-    printf("%02X", (unsigned char)datastring[i]);
-  }
-  printf("\n");
   
-  int cmp = strcmp(globdata, datastring);
-  printf("string compare: %d\n", cmp);
-  if (cmp > 0) {
-    printf("glob: %c%c%c%c\ndata: %c%c%c%c\n", globdata[cmp-1],globdata[cmp],globdata[cmp+1],globdata[cmp+2],
-      datastring[cmp-1],datastring[cmp],datastring[cmp+1],datastring[cmp+2]);
+  if (verbose) {
+    printf("verify data:\n");
+    printf("in hash:\n");
+    for(int i=0; i<strlen(datastring); i++) {
+      printf("%02X", (unsigned char)datastring[i]);
+    }
+    printf("\n");
   }
-  */
 
   int hashlen = NUM_ROUNDS/8;
   uint8_t hash[hashlen];
@@ -2846,7 +2819,7 @@ int verify(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA, in
   for(int i=0; i<hashlen; i++) {
     for(int j=0; j<8; j++, r++) {
       printf("round %d,", r);
-      int bit = hash[i] & (1 << j); //challenge bit
+      int bit = hash[i] & (1 << j) ? 1 : 0; //challenge bit
       printf("bit: %d\n", bit);
       if (bit == 0) {
         MP *R = &resp[r][0];
@@ -2989,30 +2962,31 @@ int main(int argc, char *argv[]) {
 
 
     // print everything
-    print_Curve(E);
-    print_Curve(E_S);
-    for (int r=0; r<NUM_ROUNDS; r++) {
-      printf("\n\nround %d \n", r+1);
-      print_MP(R_array[r], "R");
-      print_MP(phiR_array[r], "phi(R)");
-      print_MP(psiS_array[r], "psi(S)");
-      printf("********* E/<R> *********\n");
-      print_Curve(E_R_array[r]);
-      printf("********* E/<R,S> *********\n");
-      print_Curve(E_RS_array[r]);
-      //printf("********* E/<S,R> *********\n");
-      //print_Curve(E_SR_array[r]);
-      printf("\nhash 0: ");
-      for(int i=0; i<32; i++) {
-        printf("%02X", hr0_array[r][i]);
+    if (verbose) {
+      print_Curve(E);
+      print_Curve(E_S);
+      for (int r=0; r<NUM_ROUNDS; r++) {
+        printf("\n\nround %d \n", r+1);
+        print_MP(R_array[r], "R");
+        print_MP(phiR_array[r], "phi(R)");
+        print_MP(psiS_array[r], "psi(S)");
+        printf("********* E/<R> *********\n");
+        print_Curve(E_R_array[r]);
+        printf("********* E/<R,S> *********\n");
+        print_Curve(E_RS_array[r]);
+        //printf("********* E/<S,R> *********\n");
+        //print_Curve(E_SR_array[r]);
+        printf("\nhash 0: ");
+        for(int i=0; i<32; i++) {
+          printf("%02X", hr0_array[r][i]);
+        }
+        printf("\nhash 1: ");
+        for(int i=0; i<32; i++) {
+          printf("%02X", hr1_array[r][i]);
+        }
+        printf("\n");
       }
-      printf("\nhash 1: ");
-      for(int i=0; i<32; i++) {
-        printf("%02X", hr1_array[r][i]);
-      }
-      printf("\n");
     }
-
 
 
     
@@ -3026,122 +3000,6 @@ int main(int argc, char *argv[]) {
       printf("verify failed\n");
     }
 
-
-/**/
-
-
-/*
-    //compute commitment/challenge/responses
-    
-
-    MC **com1, **com2;
-    com1 = malloc(rounds * sizeof(MC*));
-    com2 = malloc(rounds * sizeof(MC*));
-    printf("com1: %p, com2: %p\n", com1, com2);
-    
-    int *chal;
-    chal = malloc(rounds * sizeof(int)); //first challenge bits
-    
-    MP **resp1, **resp2;
-    resp1 = malloc(2 * rounds * sizeof(MP*));
-    resp2 = malloc(2 * rounds * sizeof(MP*));
-
-    for(int r=0; r<rounds; r++) {
-      printf("\nbegin round %d\n",r);
-      ZKP_identity(time, eA, eB, lA, lB, strA, lenA, strB, lenB, PA, QA, PB, QB, r, com1, com2, chal, resp1, resp2);
-      printf("\nfinished round %d\n\n",r);
-    }
-
-    for(int r=0; r<rounds; r++) {
-      printf("Round %d\n\n", r);
-      printf("E1 = E/<R>------------------------\n");
-      print_Curve(com1[r]);
-      printf("E2 = E/<S,R>------------------------\n");
-      print_Curve(com2[r]);
-      printf("\nChallenge bit order: %d, %d\n\n", chal[r], 1-chal[r]);
-      printf("Challenge 1  ----------------\n");
-      print_MP(resp1[2*r], "resp1");
-      print_MP(resp2[2*r], "resp2");
-      printf("Challenge 2  ----------------\n");
-      print_MP(resp1[2*r +1], "resp1");
-      print_MP(resp2[2*r +1], "resp2");
-      printf("\n\n");
-    }
-
-    
-    // put all the data into a string to compute hash
-    char *data = NULL;
-    int base = 10;
-
-    uint8_t **hresp;
-    hresp = malloc(2 * rounds * sizeof(char*));
-    int hrlen = 64; // in bytes
-
-    for(int r=0; r<rounds; r++) {
-      uint8_t hr1[hrlen];
-      uint8_t hr2[hrlen];
-
-      char *ch1resp = concat(MP_str(resp1[2*r], base), MP_str(resp2[2*r], base), NULL);
-      char *ch2resp = concat(MP_str(resp1[2*r+1], base), MP_str(resp2[2*r+1], base), NULL);
-      
-
-      keccak((uint8_t*) ch1resp, strlen(ch1resp), hr1, hrlen);
-      keccak((uint8_t*) ch2resp, strlen(ch2resp), hr2, hrlen);
-      
-      /*
-      printf("hash 1: ");
-      for(int i=0; i<hrlen; i++) {
-        printf("%02X", hr1[i]);
-      }
-      printf("\nhash 2: ");
-      for(int i=0; i<hrlen; i++) {
-        printf("%02X", hr2[i]);
-      }
-      printf("\n");
-      */ /*
-
-      //converting uint8_t array into char array
-      char h1[hrlen+1];
-      char h2[hrlen+1];
-      h1[hrlen] = '\0';
-      h2[hrlen] = '\0';
-      memcpy(h1, hr1, hrlen);
-      memcpy(h2, hr2, hrlen);
-
-/*
-      for(int i=0; i<hrlen; i++) {
-        printf("%d ", (uint8_t)h1[i]);
-      }
-      printf("\n");
-      for(int i=0; i<hrlen; i++) {
-        printf("%d ", (uint8_t)h2[i]);
-      }
-      printf("\nstring1: %s\nstring2: %s\n", h1, h2);
-*/ /*
-
-      hresp[2*r] = h1;
-      hresp[2*r+1] = h2;
-
-    }
-
-    string_data(&data, rounds, com1, com2, chal, resp1, resp2, hresp, hrlen);
-    //printf("data: %s\n",data);
-    printf("\ndata length %lu\n", strlen(data));
-
-
-    int hashlength = rounds/8;
-    uint8_t hash[hashlength];
-    printf("hashlength: %d bytes (%d bits)\n", hashlength, rounds);
-
-    keccak((uint8_t*) data, strlen(data), hash, hashlength);
-    
-    printf("hash (Hex): ");
-    for(int i=0; i<hashlength; i++) {
-      printf("%02X", hash[i]);
-    }
-    printf("\n");
-
-    
 
 
     /*
