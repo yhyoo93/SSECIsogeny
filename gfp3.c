@@ -2720,6 +2720,79 @@ double iu_sign(double *time, char * eA_str, char * eB_str, char * lA_str, char *
   return 0;
 }
 
+int checkOrder(MP *point, int obase, int oexp, GF_params *parent) {
+  int rvalue = 1;
+
+  GF x1, z1, x2, z2;
+  init_GF(&x1, parent);
+  init_GF(&z1, parent);
+  init_GF(&x2, parent);
+  init_GF(&z2, parent);
+  
+  GF *curx, *curz, *mulx, *mulz;
+  curx = &x1;
+  curz = &z1;
+  mulx = &x2;
+  mulz = &z2;
+
+  copy_GF(curx, point->x);
+  copy_GF(curz, point->z);
+
+  for (int k=0; k < oexp; k++) {
+    if (obase == 2) {  
+      mont_double(mulx, mulz, *curx, *curz, point->curve.A24);
+    } else if (obase == 3) {
+      mont_triple(mulx, mulz, *curx, *curz, point->curve.A24);
+    }
+
+    if (k < oexp -1 && is_zero_GF(*mulz)) { 
+      print_GF(*mulz, "z");
+      rvalue = 0;
+    }
+    /*
+    printf("\n");
+    print_GF(*mulx, "x");
+    print_GF(*mulz, "z");
+    /**/
+
+    if (curx == &x1) {
+      curx = &x2;
+      curz = &z2;
+      mulx = &x1;
+      mulz = &z1;
+    } else {
+      curx = &x1;
+      curz = &z1;
+      mulx = &x2;
+      mulz = &z2;
+    }
+  }
+
+  if (!is_zero_GF(*curz)) rvalue = 0;
+
+  return rvalue;
+}
+
+int checkKernel(MC *curve1, MC *curve2, GF *A, GF *B, GF *A24, MP *point, int l, int *str, int len, int e) {
+  int rvalue = 1;
+
+  copy_GF(A, curve1->A);
+  copy_GF(B, curve1->B);
+  copy_GF(A24, curve1->A24);
+
+  push_through_iso(A,B,A24,point->x,point->z,l,str,len-1,NULL,NULL,NULL,NULL,NULL,NULL,e);
+
+  if (cmp_GF(*A,curve2->A) && cmp_GF(*B,curve2->B) && cmp_GF(*A24,curve2->A24)) {
+    printf("curve:\n");
+    print_Curve(curve2);
+    print_GF(*A,"\nA");
+    print_GF(*B,"B");
+    print_GF(*A24,"A24");
+    rvalue = 0;
+  }
+
+  return rvalue;
+}
 
 int verify(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA, int lenA, int *strB, int lenB, 
            MC *E, MC *E_S, MC **E_R_array, MC **E_RS_array, uint8_t **hr0_array, uint8_t **hr1_array, MP **resp, int base) {
@@ -2779,190 +2852,17 @@ int verify(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA, in
         MP *R = &resp[r][0];
         MP *phiR = &resp[r][1];
         
-        //verify E -> E/<R>
-        copy_GF(A, E->A);
-        copy_GF(B, E->B);
-        copy_GF(A24, E->A24);
+        rvalue = checkOrder(R, lB, eB, parent) && checkKernel(E, E_R_array[r], A, B, A24, R, lB, strB, lenB, eB);
 
-        // check order
-        GF Rx1, Rz1, Rx2, Rz2;
-        init_GF(&Rx1, parent);
-        init_GF(&Rz1, parent);
-        init_GF(&Rx2, parent);
-        init_GF(&Rz2, parent);
-        
-        GF *curx, *curz, *tripx, *tripz;
-        curx = &Rx1;
-        curz = &Rz1;
-        tripx = &Rx2;
-        tripz = &Rz2;
-
-        copy_GF(curx, R->x);
-        copy_GF(curz, R->z);
-
-        for (int k=0; k < eB; k++) {
-          mont_triple(tripx, tripz, *curx, *curz, R->curve.A24);
-
-          if (k < eB-1 && is_zero_GF(*tripz)) { 
-            print_GF(*tripz, "z");
-            rvalue = 0;
-          }
-
-          /*
-          printf("\n");
-          print_GF(*tripx, "x");
-          print_GF(*tripz, "z");
-          /**/
-
-          if (curx == &Rx1) {
-            curx = &Rx2;
-            curz = &Rz2;
-            tripx = &Rx1;
-            tripz = &Rz1;
-          } else {
-            curx = &Rx1;
-            curz = &Rz1;
-            tripx = &Rx2;
-            tripz = &Rz2;
-          }
-        }
-        if (!is_zero_GF(*curz)) rvalue = 0;
-
-        // check kernel
-        push_through_iso(A,B,A24,R->x,R->z,lB,strB,lenB-1,NULL,NULL,NULL,NULL,NULL,NULL,eB);
-
-        if (cmp_GF(*A,E_R_array[r]->A) && cmp_GF(*B,E_R_array[r]->B) && cmp_GF(*A24,E_R_array[r]->A24)) {
-          printf("E_R:\n");
-          print_Curve(E_R_array[r]);
-          print_GF(*A,"\nA");
-          print_GF(*B,"B");
-          print_GF(*A24,"A24");
-          rvalue = 0;
-        }
-        
-        //verify E/<S> -> E/<R,S>
-        copy_GF(A, E_S->A);
-        copy_GF(B, E_S->B);
-        copy_GF(A24, E_S->A24);
-
-        // check order
-        GF phiRx1, phiRz1, phiRx2, phiRz2;
-        init_GF(&phiRx1, parent);
-        init_GF(&phiRz1, parent);
-        init_GF(&phiRx2, parent);
-        init_GF(&phiRz2, parent);
-        
-        curx = &phiRx1;
-        curz = &phiRz1;
-        tripx = &phiRx2;
-        tripz = &phiRz2;
-
-        copy_GF(curx, phiR->x);
-        copy_GF(curz, phiR->z);
-
-        for (int k=0; k < eB; k++) {
-          mont_triple(tripx, tripz, *curx, *curz, phiR->curve.A24);
-
-          if (k < eB-1 && is_zero_GF(*tripz)) { 
-            print_GF(*tripz, "z");
-            rvalue = 0;
-          }
-
-          /*
-          printf("\n");
-          print_GF(*tripx, "x");
-          print_GF(*tripz, "z");
-          /**/
-
-          if (curx == &phiRx1) {
-            curx = &phiRx2;
-            curz = &phiRz2;
-            tripx = &phiRx1;
-            tripz = &phiRz1;
-          } else {
-            curx = &phiRx1;
-            curz = &phiRz1;
-            tripx = &phiRx2;
-            tripz = &phiRz2;
-          }
-        }
-        if (!is_zero_GF(*curz)) rvalue = 0;
-
-        push_through_iso(A,B,A24,phiR->x,phiR->z,lB,strB,lenB-1,NULL,NULL,NULL,NULL,NULL,NULL,eB);
-        
-        if (cmp_GF(*A,E_RS_array[r]->A) && cmp_GF(*B,E_RS_array[r]->B) && cmp_GF(*A24,E_RS_array[r]->A24)) {
-          printf("E_RS:\n");
-          print_Curve(E_RS_array[r]);
-          print_GF(*A,"\nA");
-          print_GF(*B,"B");
-          print_GF(*A24,"A24");
-          rvalue = 0;
-        }
+        rvalue = rvalue && checkOrder(phiR, lB, eB, parent) && checkKernel(E_S, E_RS_array[r], A, B, A24, phiR, lB, strB, lenB, eB);
         
       } else {
         MP *psiS = resp[r];
 
-        //verify E/<R> -> E/<R,S>
-        copy_GF(A, E_R_array[r]->A);
-        copy_GF(B, E_R_array[r]->B);
-        copy_GF(A24, E_R_array[r]->A24);
+        rvalue = checkOrder(psiS, lA, eA, parent) && checkKernel(E_R_array[r], E_RS_array[r], A, B, A24, psiS, lA, strA, lenA, eA);
 
-        // check order
-        GF psiSx1, psiSz1, psiSx2, psiSz2;
-        init_GF(&psiSx1, parent);
-        init_GF(&psiSz1, parent);
-        init_GF(&psiSx2, parent);
-        init_GF(&psiSz2, parent);
-        
-        GF *curx, *curz, *doubx, *doubz;
-        curx = &psiSx1;
-        curz = &psiSz1;
-        doubx = &psiSx2;
-        doubz = &psiSz2;
-
-        copy_GF(curx, psiS->x);
-        copy_GF(curz, psiS->z);
-
-        for (int k=0; k < eA; k++) {
-          mont_double(doubx, doubz, *curx, *curz, psiS->curve.A24);
-
-          if (k < eA-1 && is_zero_GF(*doubz)) { 
-            print_GF(*doubz, "z");
-            rvalue = 0;
-          }
-          /*
-          printf("\n");
-          print_GF(*doubx, "x");
-          print_GF(*doubz, "z");
-          /**/
-
-          if (curx == &psiSx1) {
-            curx = &psiSx2;
-            curz = &psiSz2;
-            doubx = &psiSx1;
-            doubz = &psiSz1;
-          } else {
-            curx = &psiSx1;
-            curz = &psiSz1;
-            doubx = &psiSx2;
-            doubz = &psiSz2;
-          }
-        }
-
-        if (!is_zero_GF(*curz)) rvalue = 0;
-
-        push_through_iso(A,B,A24,psiS->x,psiS->z,lA,strA,lenA-1,NULL,NULL,NULL,NULL,NULL,NULL,eA);
-
-        if (cmp_GF(*A,E_RS_array[r]->A) && cmp_GF(*B,E_RS_array[r]->B) && cmp_GF(*A24,E_RS_array[r]->A24)) {
-          printf("E_RS(psiS):\n");
-          print_Curve(E_RS_array[r]);
-          print_GF(*A,"\nA");
-          print_GF(*B,"B");
-          print_GF(*A24,"A24");
-          rvalue = 0;
-        }
-        
       }
+      if (!rvalue) return rvalue;
     }
   }
 
