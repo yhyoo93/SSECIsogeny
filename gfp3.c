@@ -192,11 +192,7 @@ void copy_GF(GF* res, const GF x){
   mpz_set(res->a, x.a);
   mpz_set(res->b, x.b);
 
-  GF_params *parent;
-  parent = malloc(sizeof(GF_params));
-  setup_GF(parent,prime);
-
-  res->parent = parent;
+  res->parent = x.parent;
 }
 
 void add_GF(GF *res, const GF x, const GF y) {
@@ -2006,7 +2002,7 @@ void rand_subgroup(mpz_t *m, mpz_t *n, const char * l, const char * e){
         mpz_set_ui(*n, 1);
     }
     
-    //free(num);free(_l);free(_e);free(tmp1);free(le);free(le1);free(l1);
+    free(num);free(_l);free(_e);free(tmp1);free(le);free(le1);free(l1);
     
 }
 
@@ -2218,6 +2214,19 @@ void params_from_file(char * p, char *eA, char *eB, char *lA, char *lB, int *str
     
     free(a);
     free(b);
+}
+
+void setparent_MC(MC *curve, GF_params *parent) {
+  curve->A.parent = parent;
+  curve->B.parent = parent;
+  curve->A24.parent = parent;
+}
+
+void setparent_MP(MP *point, GF_params *parent) {
+  point->x.parent = parent;
+  point->y.parent = parent;
+  point->z.parent = parent;
+  setparent_MC(&point->curve, parent);
 }
 
 
@@ -2462,7 +2471,7 @@ void run_ZKPs(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA,
 
     push_through_iso(&E_RS_array[r]->A, &E_RS_array[r]->B, &E_RS_array[r]->A24, psiS_array[r]->x, psiS_array[r]->z, lA, strA, lenA-1, NULL, NULL, NULL, NULL, NULL, NULL, eA);
 
-    //free(mB); free(nB);
+    free(mB); free(nB);
 
   }
 }
@@ -2562,6 +2571,9 @@ double iu_sign(double *time, char * eA_str, char * eB_str, char * lA_str, char *
 
   for (int t=0; t<NUM_THREADS; t++) {
     //printf("thread %d\n", t);
+
+    GF_params *tparent = malloc(sizeof(GF_params));
+    setup_GF(tparent, prime);
     
     MC *Ecopy, *E_Scopy;
     MP *Scopy, *PBcopy, *QBcopy, *phiPBcopy, *phiQBcopy;
@@ -2587,6 +2599,14 @@ double iu_sign(double *time, char * eA_str, char * eB_str, char * lA_str, char *
     copy_MP(QBcopy, *QB);
     copy_MP(phiPBcopy, *phiPB);
     copy_MP(phiQBcopy, *phiQB);
+    setparent_MC(Ecopy, tparent);
+    setparent_MC(E_Scopy, tparent);
+    setparent_MP(Scopy, tparent);
+    setparent_MP(PBcopy, tparent);
+    setparent_MP(QBcopy, tparent);
+    setparent_MP(phiPBcopy, tparent);
+    setparent_MP(phiQBcopy, tparent);
+    
 
     thread_params tp = {eA_str, eB_str, lA_str, lB_str, strA, lenA, strB, lenB, 
                       Ecopy, E_Scopy, Scopy, PBcopy, QBcopy, phiPBcopy, phiQBcopy,
@@ -2924,16 +2944,18 @@ int main(int argc, char *argv[]) {
 
     strA = malloc(lenA*sizeof(int));
     strB = malloc(lenB*sizeof(int));
+
+
     
     //Putting strategies into arrays of the exact required length
     int r=0;
-    for(r; r<lenA; r++)
+    for(r; r<lenA; r++) {
         strA[r] = strA_t[r];
-        
+    }   
     int k=0;
-    for(k; k<lenB; k++)
+    for(k; k<lenB; k++) {
         strB[k] = strB_t[k]; 
-
+    }
     
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
