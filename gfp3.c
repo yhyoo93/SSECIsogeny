@@ -2481,7 +2481,8 @@ double iu_sign(double *time, char * eA_str, char * eB_str, char * lA_str, char *
                 MP *PA, MP *QA, MP *PB, MP *QB, MC *E, MP *S, MC *E_S,
                 MP **R_array, MP **phiR_array, MP **psiS_array, MC **E_R_array, MC **E_RS_array,
                 uint8_t **hr0_array, uint8_t **hr1_array, MP **resp, int base){
-  int good=0;
+  
+  struct timeval tv1,tv2,tv3,tv4,tv5,tv6;
 
   int eA = atoi(eA_str);
   int eB = atoi(eB_str);
@@ -2489,6 +2490,7 @@ double iu_sign(double *time, char * eA_str, char * eB_str, char * lA_str, char *
   int lA = atoi(lA_str);
   int lB = atoi(lB_str);
 
+  gettimeofday(&tv1, NULL);
 
   // E
   copy_MC(E, PA->curve);
@@ -2529,6 +2531,8 @@ double iu_sign(double *time, char * eA_str, char * eB_str, char * lA_str, char *
 
   push_through_iso(&E_S->A, &E_S->B, &E_S->A24, S->x, S->z, lA, strA, lenA-1, &phiPB->x, &phiPB->y, &phiPB->z, &phiQB->x, &phiQB->y, &phiQB->z, eA);
 
+  gettimeofday(&tv2, NULL);
+
   /* 
   // not necessary
   copy_MC(&phiPB->curve, *E_S);
@@ -2539,6 +2543,8 @@ double iu_sign(double *time, char * eA_str, char * eB_str, char * lA_str, char *
     printf("\nE_S:\n");
     print_Curve(E_S);
   }
+
+
 
   printf("\nstart threading\n");
   /////////////////////////////////////////////////////////////////////////////////
@@ -2594,6 +2600,8 @@ double iu_sign(double *time, char * eA_str, char * eB_str, char * lA_str, char *
     pthread_join(ZKP_threads[t], NULL);
   }
 
+  gettimeofday(&tv3, NULL);
+
 
   // compute hashes of each response
   int hashlength = 32; // bytes
@@ -2624,6 +2632,7 @@ double iu_sign(double *time, char * eA_str, char * eB_str, char * lA_str, char *
     }
   }
 
+  gettimeofday(&tv4, NULL);
 
   // put all data into string and compute hash
   char *datastring = string_data(base, E_R_array, E_RS_array, hr0_array, hr1_array);
@@ -2648,6 +2657,8 @@ double iu_sign(double *time, char * eA_str, char * eB_str, char * lA_str, char *
     printf("%02X", hash[i]);
   }
   printf("\n");
+
+  gettimeofday(&tv5, NULL);
 
   // iterate through bits of the hash and use as challenge bits and figure out responses
   int r=0;
@@ -2675,6 +2686,20 @@ double iu_sign(double *time, char * eA_str, char * eB_str, char * lA_str, char *
     }
   }
 
+  gettimeofday(&tv6, NULL); 
+
+  double diff1 = (tv2.tv_sec-tv1.tv_sec) + ((double) tv2.tv_usec-(double) tv1.tv_usec)/1000000;
+  double diff2 = (tv3.tv_sec-tv2.tv_sec) + ((double) tv3.tv_usec-(double) tv2.tv_usec)/1000000;
+  double diff3 = (tv4.tv_sec-tv3.tv_sec) + ((double) tv4.tv_usec-(double) tv3.tv_usec)/1000000;
+  double diff4 = (tv5.tv_sec-tv4.tv_sec) + ((double) tv5.tv_usec-(double) tv4.tv_usec)/1000000;
+  double diff5 = (tv6.tv_sec-tv5.tv_sec) + ((double) tv6.tv_usec-(double) tv5.tv_usec)/1000000;
+  
+  printf("Computing E, S, E/<S> time:  %f\n", diff1);
+  printf("Running the ZKP rounds time: %f\n", diff2);
+  printf("  -> average time per round: %f\n", (double)diff2/NUM_ROUNDS);
+  printf("Computing hash of responses: %f\n", diff3);
+  printf("Computing datastring and hash: %f\n", diff4);
+  printf("Computing challenge responses: %f\n", diff5);
   
 
 
@@ -2955,10 +2980,11 @@ int main(int argc, char *argv[]) {
     printf("signing\n");
 
     int base = 10;
+
+    time_t signstart = time(NULL);
     
     iu_sign(time, eA, eB, lA, lB, strA, lenA, strB, lenB, PA, QA, PB, QB, 
             E, S, E_S, R_array, phiR_array, psiS_array, E_R_array, E_RS_array, hr0_array, hr1_array, resp, base);
-
 
 
     // print everything
@@ -2988,8 +3014,12 @@ int main(int argc, char *argv[]) {
       }
     }
 
+    time_t signend = time(NULL);
 
     
+
+
+    time_t verifystart = time(NULL);
 
     //verify
     int verified = 0;
@@ -3000,6 +3030,7 @@ int main(int argc, char *argv[]) {
       printf("verify failed\n");
     }
 
+    time_t verifyend = time(NULL);
 
 
     /*
