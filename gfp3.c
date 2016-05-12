@@ -64,7 +64,7 @@ typedef struct {
 struct GF_params {
   mpz_t p, tmp1, tmp2, tmp3;
   GF *GFtmp;
-  gmp_randstate_t state;
+  //gmp_randstate_t state;
   int initialized;
 };
 
@@ -104,6 +104,13 @@ pthread_mutex_t R_LOCK, GF_LOCK;
 char *prime;
 int verbose = 0;
 
+// get own thread id
+uint64_t gettid() {
+  pthread_t ptid = pthread_self();
+  uint64_t threadId = (uint64_t) ptid;
+  return threadId;
+}
+
 
 
 /******** IMPLEMENTATION OF GF(p^2) ********/
@@ -139,7 +146,7 @@ int setup_GF(GF_params* field, const char* characteristic) {
     return 0;
   }
 
-  gmp_randinit_default(field->state);
+  //gmp_randinit_default(field->state);
   mpz_init(field->tmp1); mpz_init(field->tmp2); mpz_init(field->tmp3);
   
   field->GFtmp = malloc(GF_TMP_REGS * sizeof(GF));
@@ -546,10 +553,12 @@ int is_zero_GF(const GF x) {
   return (mpz_sgn(x.a) == 0) && (mpz_sgn(x.b) == 0);
 }
 
+/*
 void random_GF(GF *res) {
   mpz_urandomm(res->a, res->parent->state, res->parent->p);
   mpz_urandomm(res->b, res->parent->state, res->parent->p);
 }
+*/
 
 void print_GF(const GF x, char * a) {
   gmp_printf("%s: %Zd*x + %Zd\n",a, x.a, x.b);
@@ -581,9 +590,7 @@ char * getB(  GF *x ) {
 int equals(GF *a, GF *b){
     GF tmp1;
     
-    GF_params *parent;
-    parent = malloc(sizeof(GF_params));
-    setup_GF(parent,""); 
+    GF_params *parent = a->parent;
     init_GF( &tmp1, parent );
     sub_GF(&tmp1, *a, *b);
     return is_zero_GF(tmp1);
@@ -951,8 +958,7 @@ void shamir(GF* Rx, GF* Ry, GF* Rz,
   
    
   // some temporary registers
-  GF_params* field = malloc(sizeof(GF_params));
-  setup_GF(field, prime);
+  GF_params* field = A.parent;
   GF* tmp = field->GFtmp;
   // some other dynamically allocated registers 
   GF a, d, aPx, aPy, aQx, aQy, PQx, PQy;
@@ -1024,7 +1030,7 @@ void shamir(GF* Rx, GF* Ry, GF* Rz,
   int bit = MAX(mpz_sizeinbase(m, 2), mpz_sizeinbase(n, 2)) - 1;
   mpz_set_ui(Rx->a, 0); mpz_set_ui(Ry->a, 0); mpz_set_ui(Rz->a, 0);   
   mpz_set_ui(Rx->b, 0); mpz_set_ui(Ry->b, 1); mpz_set_ui(Rz->b, 1);
-  Rx->parent = Ry->parent = Rz->parent = Px.parent;
+  //Rx->parent = Ry->parent = Rz->parent = Px.parent;
 
   //printf("CHECK 444444444444\n");
 
@@ -1845,15 +1851,15 @@ void  add(MP *res, MP Q, MP P){
     
     GF* pxtmp = P.x.parent->GFtmp;
     GF* pytmp = P.y.parent->GFtmp;
-    GF* pztmp = P.y.parent->GFtmp;
+    GF* pztmp = P.z.parent->GFtmp;
 
     x = malloc(sizeof(GF));
     z = malloc(sizeof(GF));
     y = malloc(sizeof(GF));
     
     init_GF(x, P.x.parent);
-    init_GF(z, P.x.parent);
-    init_GF(y, P.x.parent);
+    init_GF(z, P.z.parent);
+    init_GF(y, P.y.parent);
     
     mul_GF( &pxtmp[1], Q.y, P.z );
     mul_GF( &pxtmp[2] , Q.x, P.z );
@@ -2371,6 +2377,8 @@ typedef struct thread_params {
 
 
 
+
+
 void run_ZKPs(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA, int lenA, int *strB, int lenB, 
               MC *E, MC *E_S, MP *S, MP *PB, MP *QB, MP *phiPB, MP *phiQB,
               MP **R_array, MP **phiR_array, MP **psiS_array, MC **E_R_array, MC **E_RS_array) {
@@ -2378,6 +2386,10 @@ void run_ZKPs(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA,
   int eB = atoi(eB_str);
   int lA = atoi(lA_str);
   int lB = atoi(lB_str);
+
+  uint64_t tid = gettid();
+
+  GF_params *tparent = E->A.parent;
 
   int r=0;
   while (1) {
@@ -2408,20 +2420,13 @@ void run_ZKPs(char *eA_str, char *eB_str, char *lA_str, char *lB_str, int *strA,
     rand_subgroup(mB,nB,lB_str,eB_str);
 
 
-
-    // not necessary?
-    GF_params *parent;
-    parent = malloc(sizeof(GF_params));
-    setup_GF(parent, prime);
-
-
     GF *Rx, *Ry, *Rz;
     Rx=malloc(sizeof(GF));
     Ry=malloc(sizeof(GF));
     Rz=malloc(sizeof(GF));
-    init_GF(Rx, parent);
-    init_GF(Ry, parent);
-    init_GF(Rz, parent);
+    init_GF(Rx, E->A.parent);
+    init_GF(Ry, E->A.parent);
+    init_GF(Rz, E->A.parent);
 
     //GF E_A, E_B, PBx, PBy, PBz, QBx, QBy, QBz;
 
@@ -2569,11 +2574,12 @@ double iu_sign(double *time, char * eA_str, char * eB_str, char * lA_str, char *
 
   printf("numthreads: %d\nnumrounds: %d\ncurround: %d\n", NUM_THREADS, NUM_ROUNDS, CUR_ROUND);
 
-  for (int t=0; t<NUM_THREADS; t++) {
-    //printf("thread %d\n", t);
+  GF_params *tparents[NUM_THREADS];
+  thread_params tps[NUM_THREADS];
 
-    GF_params *tparent = malloc(sizeof(GF_params));
-    setup_GF(tparent, prime);
+  for (int t=0; t<NUM_THREADS; t++) {
+    tparents[t] = malloc(sizeof(GF_params));
+    setup_GF(tparents[t], prime);
     
     MC *Ecopy, *E_Scopy;
     MP *Scopy, *PBcopy, *QBcopy, *phiPBcopy, *phiQBcopy;
@@ -2599,19 +2605,25 @@ double iu_sign(double *time, char * eA_str, char * eB_str, char * lA_str, char *
     copy_MP(QBcopy, *QB);
     copy_MP(phiPBcopy, *phiPB);
     copy_MP(phiQBcopy, *phiQB);
-    setparent_MC(Ecopy, tparent);
-    setparent_MC(E_Scopy, tparent);
-    setparent_MP(Scopy, tparent);
-    setparent_MP(PBcopy, tparent);
-    setparent_MP(QBcopy, tparent);
-    setparent_MP(phiPBcopy, tparent);
-    setparent_MP(phiQBcopy, tparent);
+    setparent_MC(Ecopy, tparents[t]);
+    setparent_MC(E_Scopy, tparents[t]);
+    setparent_MP(Scopy, tparents[t]);
+    setparent_MP(PBcopy, tparents[t]);
+    setparent_MP(QBcopy, tparents[t]);
+    setparent_MP(phiPBcopy, tparents[t]);
+    setparent_MP(phiQBcopy, tparents[t]);
     
 
     thread_params tp = {eA_str, eB_str, lA_str, lB_str, strA, lenA, strB, lenB, 
-                      Ecopy, E_Scopy, Scopy, PBcopy, QBcopy, phiPBcopy, phiQBcopy,
-                      R_array, phiR_array, psiS_array, E_R_array, E_RS_array};
-    if (pthread_create(&ZKP_threads[t], NULL, run_ZKP_thread, &tp)) {
+                        Ecopy, E_Scopy, Scopy, PBcopy, QBcopy, phiPBcopy, phiQBcopy,
+                        R_array, phiR_array, psiS_array, E_R_array, E_RS_array};
+    tps[t] = tp;
+
+
+  }
+
+  for (int t=0; t<NUM_THREADS; t++) {
+    if (pthread_create(&ZKP_threads[t], NULL, run_ZKP_thread, &tps[t])) {
       printf("ERROR: Failed to create thread %d\n", t);
     }
   }
